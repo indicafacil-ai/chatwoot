@@ -18,9 +18,9 @@ bundle exec rails branding:update
 | Environment variable | Default Value                               | Description                                                           |
 | :--------------------| :------------------------------------------ | :-------------------------------------------------------------------- |
 | `INSTALLATION_NAME`  | `Chatwoot`                                  | The installation-wide name used in the dashboard, title, etc.         |
-| `LOGO_THUMBNAIL`     | `/brand-assets/logo_thumbnail.svg`          | The thumbnail used for favicon (512px X 512px).                       |
-| `LOGO`               | `/brand-assets/logo.svg`                    | The logo used on the dashboard, login page, etc.                      |
-| `LOGO_DARK`          | `/brand-assets/logo_dark.svg`               | The logo used on the dashboard, login page, etc. for dark mode.       |
+| `LOGO_THUMBNAIL`     | `/brand-assets/logo_thumbnail.png`          | The thumbnail used for favicon (512px X 512px).                       |
+| `LOGO`               | `/brand-assets/logo.png`                    | The logo used on the dashboard, login page, etc.                      |
+| `LOGO_DARK`          | `/brand-assets/logo_dark.png`               | The logo used on the dashboard, login page, etc. for dark mode.       |
 | `LOGO_EMAIL`         | _(empty)_                                   | The logo shown at the top of outgoing emails. **PNG, JPG or GIF only** — email clients do not render SVG. A relative path resolves against `FRONTEND_URL`. Left empty, `LOGO` is used when it is one of those formats, and no logo is shown otherwise. |
 | `BRAND_URL`          | `https://www.chatwoot.com`                  | The URL used in emails under the section “Powered By”.                |
 | `WIDGET_BRAND_URL`   | `https://www.chatwoot.com`                  | The URL used in the widget under the section “Powered By”.            |

@@ -15,13 +15,13 @@ namespace :branding do
       # The installation wide name that would be used in the dashboard, title etc.
       'INSTALLATION_NAME' => 'IndicaFácil.AI',
       # The thumbnail that would be used for favicon (512px X 512px)
-      'LOGO_THUMBNAIL' => '/brand-assets/logo_thumbnail.svg',
+      'LOGO_THUMBNAIL' => '/brand-assets/logo_thumbnail.png',
       # The logo that would be used on the dashboard, login page etc.
-      'LOGO' => '/brand-assets/logo.svg',
+      'LOGO' => '/brand-assets/logo.png',
       # The logo that would be used on the dashboard, login page etc. for dark mode
-      'LOGO_DARK' => '/brand-assets/logo_dark.svg',
+      'LOGO_DARK' => '/brand-assets/logo_dark.png',
       # The logo shown at the top of outgoing emails (PNG or JPG; email clients do not render SVG)
-      'LOGO_EMAIL' => '',
+      'LOGO_EMAIL' => '/brand-assets/logo_email.png',
       # The URL that would be used in emails under the section “Powered By”
       'BRAND_URL' => 'https://indicafacil.ai',
       # The URL that would be used in the widget under the section “Powered By”
@@ -37,6 +37,8 @@ namespace :branding do
       # Display default Chatwoot metadata like favicons and upgrade warnings
       'DISPLAY_MANIFEST' => true
     }
+
+    skipped = []
 
     configurable_items.each do |config_name, default_value|
       # Blank counts as absent. `- BRAND_NAME=${BRAND_NAME}` in a compose file
@@ -54,8 +56,30 @@ namespace :branding do
                 from_env || default_value
               end
 
-      InstallationConfig.find_by!(name: config_name).update!(value: value)
+      config = InstallationConfig.find_by(name: config_name)
+
+      # A row is seeded from config/installation_config.yml by `db:chatwoot_prepare`, and this task
+      # runs from the compose `post_start` hook ALONGSIDE that seeding rather than after it. On the
+      # first boot of a version that introduces a name, the seed can still be in flight: measured on
+      # 2026-09-09, the container started at 17:28:54 and the LOGO_EMAIL row was written at 17:29:40,
+      # 46 seconds later. `find_by!` raised there, the hook exited 1, and the SEVEN names after it in
+      # the list were never applied -- BRAND_COLOR among them, which stayed on the seeded upstream
+      # blue across four installations while every deploy reported success.
+      #
+      # Skipping keeps the rest of the list and costs one boot: the next run finds the row and sets
+      # it. Creating the row here instead would produce one without the display_title and description
+      # that only the YAML carries, and the seed would then leave that half-row alone.
+      if config.nil?
+        skipped << config_name
+        next
+      end
+
+      config.update!(value: value)
       puts "Updated '#{config_name}' to '#{value}'."
+    end
+
+    if skipped.any?
+      puts "Not yet in the database, so left for the next run: #{skipped.join(', ')}."
     end
 
     puts 'Branding configuration update finished.'

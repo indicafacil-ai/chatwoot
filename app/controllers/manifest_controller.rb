@@ -5,7 +5,7 @@ class ManifestController < ApplicationController
   def show
     config = GlobalConfig.get('INSTALLATION_NAME', 'LOGO_THUMBNAIL', 'BRAND_COLOR')
     installation_name = config['INSTALLATION_NAME'].presence || 'Chatwoot'
-    logo = config['LOGO_THUMBNAIL'].presence || '/brand-assets/logo_thumbnail.svg'
+    logo = config['LOGO_THUMBNAIL'].presence || '/brand-assets/logo_thumbnail.png'
     brand_color = config['BRAND_COLOR'].presence || '#1f93ff'
     icon_type = svg?(logo) ? SVG_MIME : PNG_MIME
 
