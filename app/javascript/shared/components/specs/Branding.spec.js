@@ -1,6 +1,8 @@
 import { shallowMount } from '@vue/test-utils';
 
-const mockGlobalConfig = { value: { installationName: 'Chatwoot Indica Fácil' } };
+const mockGlobalConfig = {
+  value: { installationName: 'Chatwoot Indica Fácil' },
+};
 
 vi.mock('dashboard/composables/store.js', () => ({
   useMapGetter: () => mockGlobalConfig,
