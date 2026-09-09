@@ -87,5 +87,24 @@ RSpec.describe Rake::Task do
 
       expect(config_value('DISPLAY_MANIFEST')).to be(false)
     end
+
+    # THE ROW THE SEED HAS NOT WRITTEN YET. The task runs from the compose
+    # `post_start` hook alongside `db:chatwoot_prepare`, not after it, so on the
+    # first boot of a version that introduces a name the row can still be
+    # missing. Measured on 2026-09-09: the container started at 17:28:54 and the
+    # LOGO_EMAIL row landed 46 seconds later. `find_by!` raised there and the
+    # SEVEN names after it were never applied, BRAND_COLOR among them -- four
+    # installations kept serving the upstream blue in e-mail and on the survey
+    # page while every deploy reported success.
+    it 'leaves a name the seed has not written yet for the next run, and still applies the rest' do
+      InstallationConfig.find_by!(name: 'LOGO_EMAIL').destroy!
+
+      expect { task.invoke }.not_to raise_error
+
+      # BRAND_COLOR sits after LOGO_EMAIL in the list, so it is the one the old
+      # behaviour could never reach.
+      expect(config_value('BRAND_COLOR')).to eq('#2162da')
+      expect(InstallationConfig.exists?(name: 'LOGO_EMAIL')).to be(false)
+    end
   end
 end
