@@ -1,4 +1,20 @@
 # NOTE: See https://github.com/indicafacil-ai/chatwoot/blob/main/CUSTOM_BRANDING.md for more details.
+# WHAT A NAME IS WORTH, before the database is consulted. It lives outside the task because the cop
+# that measures block length was right: resolving the value and applying it are two jobs.
+module BrandingDefaults
+  # Blank counts as absent. `- BRAND_NAME=${BRAND_NAME}` in a compose file whose variable was never
+  # set in the panel reaches the container as an empty string, and ENV.fetch finds the key and hands
+  # that back — the brand would come out blank rather than defaulted. DISPLAY_MANIFEST is worse: ""
+  # is not "true", so it would silently switch off the new-version banner. This project has already
+  # been bitten once by an undeclared BRAND_ASSETS_URL arriving empty.
+  def self.value_for(config_name, default_value)
+    from_env = ENV[config_name].presence
+    return from_env || default_value unless default_value.in?([true, false])
+
+    from_env.nil? ? default_value : from_env == 'true'
+  end
+end
+
 namespace :branding do
   desc 'Updates branding configurations from environment variables or defaults'
   task update: :environment do
@@ -41,21 +57,7 @@ namespace :branding do
     skipped = []
 
     configurable_items.each do |config_name, default_value|
-      # Blank counts as absent. `- BRAND_NAME=${BRAND_NAME}` in a compose file
-      # whose variable was never set in the panel reaches the container as an
-      # empty string, and ENV.fetch finds the key and hands that back — the
-      # brand would come out blank rather than defaulted. DISPLAY_MANIFEST is
-      # worse: "" is not "true", so it would silently switch off the
-      # new-version banner. This project has already been bitten once by an
-      # undeclared BRAND_ASSETS_URL arriving empty.
-      from_env = ENV[config_name].presence
-
-      value = if default_value.in?([true, false])
-                from_env.nil? ? default_value : from_env == 'true'
-              else
-                from_env || default_value
-              end
-
+      value = BrandingDefaults.value_for(config_name, default_value)
       config = InstallationConfig.find_by(name: config_name)
 
       # A row is seeded from config/installation_config.yml by `db:chatwoot_prepare`, and this task
@@ -69,18 +71,13 @@ namespace :branding do
       # Skipping keeps the rest of the list and costs one boot: the next run finds the row and sets
       # it. Creating the row here instead would produce one without the display_title and description
       # that only the YAML carries, and the seed would then leave that half-row alone.
-      if config.nil?
-        skipped << config_name
-        next
-      end
+      next skipped << config_name if config.nil?
 
       config.update!(value: value)
       puts "Updated '#{config_name}' to '#{value}'."
     end
 
-    if skipped.any?
-      puts "Not yet in the database, so left for the next run: #{skipped.join(', ')}."
-    end
+    puts "Not yet in the database, so left for the next run: #{skipped.join(', ')}." if skipped.any?
 
     puts 'Branding configuration update finished.'
   end
