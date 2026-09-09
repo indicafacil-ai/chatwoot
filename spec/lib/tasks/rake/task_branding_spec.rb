@@ -9,14 +9,21 @@ RSpec.describe Rake::Task do
   describe 'branding:update' do
     subject(:task) { described_class['branding:update'] }
 
-    # Every one of the ten, not just the five asserted on below: the task walks
-    # the whole list with find_by!, so a missing row raises on a name this test
-    # never looks at. A seeded database hides that — which is exactly how this
-    # passed on a dev box and failed in CI.
+    # Every name the task manages, not just the five asserted on below: the task
+    # walks the whole list with find_by!, so a missing row raises on a name this
+    # test never looks at. A seeded database hides that — which is exactly how
+    # this passed on a dev box and failed in CI.
+    #
+    # This list is written out rather than read from the task, so that a name
+    # arriving in `configurable_items` has to be acknowledged here. Growing it
+    # is the correct outcome of adding one; not noticing is not. LOGO_EMAIL and
+    # BRAND_COLOR reached the task through a base update and this list did not
+    # move, and the five examples below failed on a name none of them mention.
     let(:managed_names) do
       %w[
-        INSTALLATION_NAME LOGO_THUMBNAIL LOGO LOGO_DARK BRAND_URL
-        WIDGET_BRAND_URL BRAND_NAME TERMS_URL PRIVACY_URL DISPLAY_MANIFEST
+        INSTALLATION_NAME LOGO_THUMBNAIL LOGO LOGO_DARK LOGO_EMAIL BRAND_URL
+        WIDGET_BRAND_URL BRAND_NAME BRAND_COLOR TERMS_URL PRIVACY_URL
+        DISPLAY_MANIFEST
       ]
     end
 

@@ -48,6 +48,7 @@ Rails.application.routes.draw do
         member do
           post :update_active_at
           get :cache_keys
+          delete :brand_logo_email
         end
 
         scope module: :accounts do
@@ -360,6 +361,7 @@ Rails.application.routes.draw do
             get :agent_bot, on: :member
             get :message_templates, on: :member
             post :set_agent_bot, on: :member
+            resources :agent_bot_observers, only: [:index, :create, :destroy], module: :inboxes
             post :setup_channel_provider, on: :member
             post :request_pairing_code, on: :member
             post :import_whatsapp_session, on: :member
