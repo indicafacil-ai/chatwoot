@@ -107,6 +107,13 @@ jobs:
                 spec/enterprise/*|enterprise/*) continue ;;   # stripped before the suite runs
                 spec/*_spec.rb) [ -f "$f" ] && specs+="$f"$'\n' ;;
                 app/javascript/*) continue ;;
+                docker/entrypoints/*|docker/Dockerfile)
+                  # A shell script has no `_spec.rb` twin, so the filename map below cannot
+                  # reach spec/docker and the entrypoint's own guard would change with
+                  # nothing running against it.
+                  found=$(find spec/docker -name '*_spec.rb' 2>/dev/null || true)
+                  [ -n "$found" ] && specs+="$found"$'\n'
+                  ;;
                 app/*.rb|lib/*.rb)
                   # Every spec named after the file, wherever it sits (spec/models, spec/requests...).
                   base=$(basename "$f" .rb)
@@ -249,6 +256,16 @@ jobs:
         run: |
           rm -rf enterprise
           rm -rf spec/enterprise
+
+      # The deploy image installs ffmpeg (docker/Dockerfile), and the runner image does not.
+      # Without it here the specs that decode audio are filtered out rather than failed, so
+      # a broken invocation ships green: that is how `out.present?` over raw PCM, which
+      # raises on the first byte that is not valid UTF-8, passed every example that handed
+      # samples in directly.
+      - name: Install the media tools the deploy image carries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
 
       - name: Create database
         run: bundle exec rake db:create
