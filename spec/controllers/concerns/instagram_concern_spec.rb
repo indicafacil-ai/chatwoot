@@ -52,7 +52,9 @@ RSpec.describe InstagramConcern do
             access_token: short_lived_token,
             client_id: client_id
           },
-          headers: { 'Accept' => 'application/json' }
+          headers: { 'Accept' => 'application/json' },
+          timeout: 10,
+          max_retries: 0
         }
       )
 
@@ -109,7 +111,9 @@ RSpec.describe InstagramConcern do
             fields: 'id,username,user_id,name,profile_picture_url,account_type',
             access_token: access_token
           },
-          headers: { 'Accept' => 'application/json' }
+          headers: { 'Accept' => 'application/json' },
+          timeout: 10,
+          max_retries: 0
         }
       )
 
@@ -122,7 +126,7 @@ RSpec.describe InstagramConcern do
       it 'raises an error' do
         expect do
           dummy_instance.send(:fetch_instagram_user_details, access_token)
-        end.to raise_error(RuntimeError, 'Failed to fetch Instagram user details: Error')
+        end.to raise_error(Instagram::UserDetailsService::Error, 'Failed to fetch Instagram user details: Error')
       end
     end
 

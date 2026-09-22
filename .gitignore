@@ -112,3 +112,4 @@ Procfile.worktree
 action_log.txt
 last_commit.diff
 last_commit_utf8.diff
+.nodeterm/project.json
