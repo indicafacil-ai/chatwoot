@@ -103,22 +103,6 @@ RSpec.describe Conversation do
       expect(error_messages[:custom_attributes][0]).to eq('company_name length should be < 1500')
       expect(error_messages[:custom_attributes][1]).to eq('contact_number value should be < 9999999999')
     end
-
-    it 'allows a mail_subject past the generic limit in additional_attributes' do
-      conversation.additional_attributes = { mail_subject: 'a' * 1972 }
-
-      expect(conversation).to be_valid
-    end
-
-    it 'keeps the generic limit for a custom attribute that happens to be named mail_subject' do
-      # The allowance belongs to the mailbox, not to the name: custom_attributes keys are
-      # whatever an operator typed into the UI, and one of them matching by accident must not
-      # widen the payload.
-      conversation.custom_attributes = { mail_subject: 'a' * 1972 }
-      conversation.valid?
-
-      expect(conversation.errors.messages[:custom_attributes][0]).to eq('mail_subject length should be < 1500')
-    end
   end
 
   describe '.after_update' do
@@ -828,7 +812,7 @@ RSpec.describe Conversation do
         unread_count: 0,
         group_type: 'individual',
         # Present on every conversation, nil included: its absence is what tells a consumer this
-        # Chatwoot does not speak about redirect pairings at all (upstream agents#222).
+        # Chatwoot does not speak about redirect pairings at all (indica-facil/agents#222).
         redirect_origin_display_id: nil
       }
     end
