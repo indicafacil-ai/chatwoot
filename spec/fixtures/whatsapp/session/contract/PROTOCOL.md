@@ -18,12 +18,21 @@ JSON-encoded).
 reaches its owner late is dropped unrun, answered `expired`. `max_runtime_ms` is a
 duration, measured from the moment the work begins, and says *do not let this run longer
 than that*; it says nothing about arriving late. A command carrying both gets whichever
-runs out first, and one carrying neither has no ceiling at all.
+runs out first, and one carrying neither is bounded by something the caller did not
+choose, which the next paragraph names.
 
 The distinction exists because a teardown needs one without the other: a `session.logout`
 dropped for arriving late is a device left linked on somebody's phone with nothing saying
 so, while the same command parked on a socket write holds every other command for that
 account behind it. With one field a client had to choose, and chose neither.
+
+**A command with neither field is still bounded, and mostly not by this connector.** Most of what this connector sends carries a ceiling that is the WhatsApp library's and not this connector's, seventy five seconds, which covers a message send and an information query alike, and several paths are held to something tighter that this connector chooses. What comes back when one of those runs out is `timeout`, the same word a caller's own `max_runtime_ms` produces and with the same meaning: nobody here knows the outcome and nothing afterwards will. But some paths escape every ceiling, named below, and this contract does not claim the list is complete or count them. So a client that has a deadline of its own enforces it on the reply rather than inferring one from this paragraph.
+
+**A client may resend such a command, and for anything that changes something the identifier is not what makes that safe.** The connector records only what succeeded, so a command answered `timeout` has left no record at all, and a resend under the same `idempotency_key` finds nothing to answer from and runs the work again. What the identifier buys is narrower and still worth having: a frame redelivered after the first attempt *succeeded* is answered from the record instead of being run twice. For a send that is enough on its own, because the resend carries the `message_id` the first attempt used and every client downstream discards a repeat of an id it already has. For everything else it is not: a `group.invite.get` that rotates the link, a participant added or removed, a name set, may already have happened, and resending does it again. A client that cannot afford that reads the state back before resending rather than resending blind.
+
+**`group.create` is the exception, and keeping the key is what makes the recovery work.** It writes down what it is about to do before it asks WhatsApp, so a record exists whether or not the attempt succeeded, and a retry under the same `idempotency_key` consults that record: it returns the group the first attempt made, or answers `not_settled` while WhatsApp's notification is still deciding which request made which group. Retrying with a fresh key instead makes a second group. This is the one command for which "left no record at all" above does not hold, and it is why `not_settled` exists.
+
+**Four commands now carry a ceiling of this connector's, and what is left unbounded is a different shape.** The retry that used to wait with no timer of its own is bounded here, so a `message.send` whose caller named nothing still ends. The gate that ceiling sits on is the one `message.edit`, `message.revoke` and `message.react` leave by as well, so those three carry it too, and they are safe to resend for the reason the send is: each one goes out under the id of the message it acts on, or under the `idempotency_key` or the command's own id when it names no message, so a redelivery repeats an identifier the receiving side already holds and discards. What no ceiling reaches is a wait that does not look at the context at all, and a send's way out holds more than one: the node already being written to the socket, the lock the library takes to keep one send per connection at a time, and the read lock on the socket, which a reconnection holds for as long as its dial and handshake take. A command held by any of those does not come back when a ceiling runs out, and it does not end the commands queued behind it either: `max_runtime_ms` is measured from the moment a command begins, so one that waited its turn starts a full budget with the waiting already over. What a ceiling does for the queue is narrower than that. The held call returns the instant it is released, instead of spending what is left of a reply nobody is bringing, and the queue moves from there. A client that would rather a queued command be dropped than run late names a `deadline`, which is the field checked before the work starts. So `max_runtime_ms` is worth setting, and it is worth knowing what it buys: it bounds every wait that watches the context, and says nothing about a wait of that other kind. **A client that cannot wait indefinitely needs its own timeout on the reply**, not a field on the command: this connector will answer, and what no field here can promise is when.
 
 **Neither ceiling reaches `session.wake`, and a client should not expect `expired` for one.**
 It is carried out before any session is involved, and nothing on that path reads `deadline`.
@@ -49,9 +58,47 @@ teardown under both ceilings like any other command. **A client should not put a
 on a teardown** -- `session.delete` or `session.logout` -- and should bound it with
 `max_runtime_ms` alone. One that arrives after its deadline is answered `expired` and the
 account is not torn down, which is the device left linked on somebody's phone that the two
-fields exist to keep apart. It costs more than that: the connector has adopted the account
-by the time the refusal happens, so a teardown refused for arriving late leaves the account
-connected on an instance, running, on the strength of a command that was turned down.
+fields exist to keep apart, and it is the whole of what the refusal costs. The adoption
+behind it costs nothing further: an account opened so that a teardown can reach its
+executor is never connected, and one whose teardown was then refused for arriving late is
+given back, by a heartbeat rather than by the answer, so a refused teardown does not
+leave the account owned by the instance that refused it. A client that sends another
+command for that account in between is talking to the instance that still owns it, and one
+that arrives while the lease is going back is left pending for whoever takes the account
+next, which is what every hand-back does.
+
+**A teardown that ran out of time answers `not_attempted` when nothing was sent, and a
+client should retry that one.** The two ways a teardown fails on time are not the same
+fact and the connector tells them apart. `timeout` is the ordinary one: the request was
+on its way and how far it got is not known here, so a retry may be repeating something
+that already happened. `not_attempted` is the connector saying it is certain nothing was
+written to WhatsApp -- the socket was being dialled and its lock was never free, so the
+unlink was never called. The account is exactly as it was, the device is still linked on
+somebody's phone, and a retry does the whole thing rather than the half that is left.
+Retrying with the same `idempotency_key` is correct: a command that failed is not
+recorded, so the key answers nothing and the retry runs. The same word answers a
+`session.logout` in the same state, because it is the same fact about the socket; a
+logout whose request did reach WhatsApp and whose answer was lost is the other case and
+keeps `timeout`. A client that treats `not_attempted` as final leaves a device linked
+that no later command can remove, because the credentials that would sign the unlink are
+the ones the teardown would have thrown away.
+
+**A `group.create` whose outcome is not decided yet answers `not_settled`, and a client
+should ask again in a moment.** Two requests for a group of the same name, both still
+open, make a group on WhatsApp that is evidence for either and proof for neither.
+Answering one of them with it would hand that request the other's conversation and skip
+the creation it asked for, so the connector refuses until WhatsApp's own notification
+names which request made which group, which ordinarily arrives within seconds. This is
+the third answer about time and it is not either of the other two: `timeout` says nobody
+here can tell and nothing afterwards will, `not_attempted` says the request never went
+out, and `not_settled` says it did and the connector expects to know which shortly.
+Retrying with the same `idempotency_key` is correct and is the point: a command that
+failed is not recorded, so the key answers nothing and the retry runs, and the retry is
+what collects the group the first attempt made rather than making a second one. A client
+that treats it as final leaves the operator with a group nobody's conversation points at;
+a client that treats it as `internal` pages somebody for a case that settles itself.
+
+**`not_settled` is not a promise that asking again will settle it, and a client bounds its retries.** The word says the outcome is undecided here, not that a decision is coming. One state does not resolve: an attempt whose intent was recorded and whose request never reached WhatsApp. Two things leave it that way, and neither is rare enough to leave unsaid. The process can die between the two. Or the connector's own ceiling on that write can run out after the database has committed the row and before this side learned that it had, a race nobody here can see the winner of: the row is on record, nothing was ever asked of WhatsApp, and the connector has already answered that it could not record the intent. No group was made, so no notification will ever name one, and every redelivery gets `not_settled` again. Retrying is also what keeps that record alive: each delivery pushes the intent's clock forward, and the connector's own sweep, which would drop an untouched intent after its retention window, never reaches one that is still being asked about. So a client retries a few times over seconds, and a `not_settled` that survives that is a stranded intent: stop, tell somebody, and do not send the same key again expecting a different answer.
 
 **Both ceilings bound the wait on WhatsApp, not the bookkeeping that follows it.** Once a
 teardown's unlink has been answered, the connector finishes deleting the credentials, the
@@ -128,7 +175,7 @@ frames, but both sides have to agree on them, so they are part of the contract:
 | `wa:lease-epoch:<sid>` | STRING (**no expiry**) | connector | the epoch that owner holds the session under, incremented on every acquisition. It must outlive every disconnection, logout and re-pairing of the account, and only a `session.delete` removes it |
 | `wa:idem:<sid>:<key>` | STRING | connector | command idempotency (`msg:<message_id>` for sends) |
 | `wa:resume:<sid>` | STRING (EX 60s) | connector | a turn taken to bring an unowned session back, so the fleet asks about one account once per window |
-| `wa:quarantine:<sid>` | HASH (EX wait + 1h) | connector | `strikes` and `until`: how many times a session failed to come back, and how long the fleet leaves it alone |
+| `wa:quarantine:<sid>` | HASH (EX wait + 1h) | connector | `strikes` and `until`: how many times a session failed to come back, and how long the fleet leaves it alone. `attempt` is the connector's own bookkeeping, telling one failure from a retry of the same one |
 | `wa:events:<shard>:lease` | STRING (EX 30s) | client | which consumer reads a shard; exactly one at a time, which is what preserves order |
 | `wa:consumer:<cid>` | STRING (EX 15s) | client | consumer heartbeat and the shards it holds |
 | `wa:cursor:<sid>` | STRING | client | last `epoch:seq` the client processed for a session |

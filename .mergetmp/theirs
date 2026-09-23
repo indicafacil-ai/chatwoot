@@ -828,7 +828,7 @@ RSpec.describe Conversation do
         unread_count: 0,
         group_type: 'individual',
         # Present on every conversation, nil included: its absence is what tells a consumer this
-        # Chatwoot does not speak about redirect pairings at all (upstream agents#222).
+        # Chatwoot does not speak about redirect pairings at all (indica-facil/agents#222).
         redirect_origin_display_id: nil
       }
     end
