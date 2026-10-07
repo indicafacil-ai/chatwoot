@@ -1,9 +1,16 @@
 name: Build and Publish Docker Image
 
+# 🔴 A imagem sai da RELEASE, e de mais nada.
+#
+# Até 07/10/2026 o gatilho era `push` na `main`, e esta é a edição que roda em instalação de
+# CLIENTE: uma PR mesclada chegava ao cliente no próximo restart dele, sem release, sem nota e sem
+# ninguém decidir que era hora.
+#
+# `released` e não `published`: o segundo também dispara para pré-lançamento, e pré-lançamento não é
+# o que o parque deve receber.
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [released]
   workflow_dispatch:
 
 env:
