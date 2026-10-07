@@ -10,8 +10,8 @@ Export environment variables and run rake task with `bundle exec rails branding:
 ```bash
 INSTALLATION_NAME="Chatwoot indicafacil.app" \
 BRAND_NAME="My Company" \
-LOGO_THUMBNAIL="https://licencas.indicafacil.app/logo-thumbnail.svg" \
-LOGO="https://licencas.indicafacil.app/logo.svg" \
+LOGO_THUMBNAIL="https://indicafacil.ai/logo_thumbnail.png" \
+LOGO="https://indicafacil.ai/logo.png" \
 bundle exec rails branding:update
 ```
 

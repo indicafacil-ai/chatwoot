@@ -73,7 +73,7 @@ jobs:
 
           echo "--- White-label ---"
           check "links de licenca" \
-            "$(grep -rl 'licencas.indicafacil.app' app/javascript/ 2>/dev/null | wc -l)" 4
+            "$(grep -rl 'indicafacil.ai' app/javascript/ 2>/dev/null | wc -l)" 4
 
           leftovers=$(grep -rl 'fazer\.ai\|fazer-ai\|fazer_ai\|FazerAi' \
             --include='*.rb' --include='*.vue' --include='*.js' --include='*.erb' \

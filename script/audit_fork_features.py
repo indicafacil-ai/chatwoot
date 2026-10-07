@@ -225,7 +225,7 @@ def main():
     print("=" * 62)
     print("3) MARCA")
     print("=" * 62)
-    r = subprocess.run(['grep', '-rl', 'licencas.indicafacil.app', os.path.join(REPO, 'app/javascript')],
+    r = subprocess.run(['grep', '-rl', 'indicafacil.ai', os.path.join(REPO, 'app/javascript')],
                        capture_output=True, text=True)
     check("arquivos com link de licenca", len([x for x in r.stdout.splitlines() if x.strip()]), 4)
     check("extensao Chrome Indica Facil",
