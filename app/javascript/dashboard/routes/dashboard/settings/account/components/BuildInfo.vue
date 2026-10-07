@@ -53,7 +53,7 @@ const copyGitSha = () => {
       <!-- eslint-disable vue/no-bare-strings-in-template @intlify/vue-i18n/no-raw-text -->
       <a
         v-if="globalConfig.displayManifest"
-        href="https://licencas.indicafacil.app"
+        href="https://indicafacil.ai"
         target="_blank"
         rel="noopener noreferrer"
         class="px-2 text-n-slate-11 hover:text-n-brand"

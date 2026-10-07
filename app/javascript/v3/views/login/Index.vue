@@ -430,7 +430,7 @@ export default {
     >
       powered by
       <a
-        href="https://licencas.indicafacil.app"
+        href="https://indicafacil.ai"
         target="_blank"
         rel="noopener noreferrer"
         class="text-n-slate-11 hover:text-n-brand"

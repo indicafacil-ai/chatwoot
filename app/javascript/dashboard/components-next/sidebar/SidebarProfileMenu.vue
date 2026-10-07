@@ -99,7 +99,7 @@ const menuItems = computed(() => {
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.CHANGELOG'),
       icon: 'i-lucide-scroll-text',
-      link: 'https://licencas.indicafacil.app/chatwoot-release-notes',
+      link: 'https://indicafacil.ai/chatwoot-release-notes',
       nativeLink: true,
       target: '_blank',
     },
