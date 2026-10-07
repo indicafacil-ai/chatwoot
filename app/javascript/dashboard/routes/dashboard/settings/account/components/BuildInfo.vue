@@ -58,7 +58,7 @@ const copyGitSha = () => {
         rel="noopener noreferrer"
         class="px-2 text-n-slate-11 hover:text-n-brand"
       >
-        Indica Fácil Tecnologia e Serviços Digitais
+        IndicaFácil.AI Tecnologia e Serviços Digitais
       </a>
       <!-- eslint-enable vue/no-bare-strings-in-template @intlify/vue-i18n/no-raw-text -->
     </div>
