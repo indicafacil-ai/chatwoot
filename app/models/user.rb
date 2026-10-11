@@ -177,6 +177,23 @@ class User < ApplicationRecord
     }
   end
 
+  # 🔴 Restaura a detecção de troca de e-mail do Devise, que o `devise_token_auth` desliga.
+  #
+  # A gem sobrepõe este gancho para `false` porque tem o PRÓPRIO fluxo de confirmação — mas só o
+  # liga quando `DeviseTokenAuth.send_confirmation_email` é true, e o padrão dela é **false**
+  # (`lib/devise_token_auth/engine.rb:59`). Nós não configuramos isso, então o `ConfirmableSupport`
+  # da gem não é incluído e quem roda é o `postpone_email_change?` do Devise — que pergunta
+  # exatamente este método. Sem esta linha, `unconfirmed_email` fica `nil` e a reconfirmação
+  # simplesmente não acontece.
+  #
+  # ⚠️ ATÉ O `devise_token_auth 1.2.5` a gem desligava `will_save_change_to_email?`, o método do
+  # ActiveRecord, e este override morava lá. A `1.3.0` mudou o alvo para o gancho do Devise, então
+  # o override mudou de nome junto. A implementação abaixo é a de fábrica, copiada do
+  # `devise/orm.rb` — o objetivo é devolver o comportamento padrão, não inventar outro.
+  def devise_will_save_change_to_email?
+    will_save_change_to_email?
+  end
+
   def self.from_email(email)
     find_by(email: email&.downcase)
   end

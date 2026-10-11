@@ -97,17 +97,28 @@ RSpec.describe User do
     end
   end
 
-  # Este exemplo parece testar o ActiveRecord, e é de propósito: ele guarda contra uma regressão de
-  # terceiro. Até o `devise_token_auth 1.2.5`, a gem sobrepunha `will_save_change_to_email?` para
-  # devolver `false`, o que quebrava o fluxo de reconfirmação de e-mail — e o `user.rb` tinha um
-  # override local só para desfazer isso. Na `1.3.0` a gem passou a sobrepor
-  # `devise_will_save_change_to_email?` (o gancho interno do Devise) e a deixar o método do
-  # ActiveRecord em paz, então o override local saiu. Se alguma versão futura voltar a mexer no
-  # método do AR, é aqui que aparece.
+  # Estes dois exemplos parecem testar o ActiveRecord, e são de propósito: guardam contra uma
+  # regressão de terceiro que JÁ ACONTECEU DUAS VEZES, em lugares diferentes.
+  #
+  # O `devise_token_auth` desliga a detecção de troca de e-mail do Devise, porque tem o próprio
+  # fluxo de confirmação — mas só liga esse fluxo quando `send_confirmation_email` é true, e o
+  # padrão dela é false. Resultado: sem um override nosso, `unconfirmed_email` fica `nil` e a
+  # reconfirmação não acontece.
+  #
+  # Até a `1.2.5` ela desligava `will_save_change_to_email?` (o método do ActiveRecord). Na `1.3.0`
+  # mudou o alvo para `devise_will_save_change_to_email?` (o gancho interno do Devise) — e o
+  # override nosso teve de mudar de nome junto. O segundo exemplo existe porque o primeiro,
+  # sozinho, continuava VERDE enquanto a reconfirmação estava quebrada.
   context 'when user changes the email' do
     it 'mutates the value' do
       user.email = 'user@example.com'
       expect(user.will_save_change_to_email?).to be true
+    end
+
+    # Este é o que o Devise realmente pergunta antes de postergar a troca de e-mail.
+    it 'reports the change through the hook Devise actually asks' do
+      user.email = 'user@example.com'
+      expect(user.devise_will_save_change_to_email?).to be true
     end
   end
 
