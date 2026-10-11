@@ -1,8 +1,10 @@
 {
   "_LEIA_PRIMEIRO": [
-    "Este arquivo existe porque um portao que vive vermelho nao acusa mais nada. Ate 11/10/2026 o Brakeman rodava com continue-on-error: true e um comentario dizendo 40 achados preexistentes - ou seja, aceitava o 41o sem ninguem ver. Foi exatamente assim que o RCE do Active Storage (CVE-2026-66066) ficou escondido atras do bundle-audit vermelho por meses.",
-    "Os 40 foram lidos UM A UM em 11/10/2026, cada um com o motivo escrito no campo note da sua entrada. Trinta e nove sao falso positivo ou funcionalidade; UM e real (o fim do suporte de seguranca do Rails 7.2) e esta ignorado COM PRAZO.",
-    "Nao acrescente entrada aqui sem escrever o motivo, e nao escreva motivo que voce nao verificou no codigo. A pergunta que pegou tres diagnosticos falsos neste projeto e: isso tambem aparece onde deu certo?",
+    "Este arquivo existe porque um portao que vive vermelho nao acusa mais nada. Ate 11/10/2026 o Brakeman rodava com continue-on-error: true e um comentario dizendo 35 achados preexistentes - eram 40, e o comentario tinha envelhecido sem ninguem notar. Ou seja: o portao aceitava o 41o sem ninguem ver. Foi exatamente assim que o RCE do Active Storage (CVE-2026-66066) ficou escondido atras do bundle-audit vermelho por meses - e aqui ele estava pior, porque a CVE do RCE tambem estava na lista do .bundler-audit.yml, com o motivo remover ao chegar em 7.2.3.1+, muito depois de termos chegado.",
+    "Os 40 foram lidos UM A UM em 11/10/2026, cada um com o motivo escrito no campo note da sua entrada. Trinta e nove sao falso positivo ou a propria funcionalidade; UM e real (o fim do suporte de seguranca do Rails 7.2) e esta ignorado COM PRAZO.",
+    "A edicao paga tem 42 entradas e nao 40: ela tem a pasta indica_facil/, que esta edicao nao tem, e la ha dois achados a mais. Fora esses dois, as impressoes digitais sao as mesmas nas duas - o codigo e o mesmo.",
+    "🔴 COMO MEDIR: rode o Brakeman contra a ARVORE INTEIRA. Medir so algumas pastas para economizar transferencia foi o que, na edicao paga, deixou dois achados de codigo proprio passarem na medicao local - eles sumiram do relatorio e sobraram para o CI achar.",
+    "Nao acrescente entrada aqui sem escrever o motivo, e nao escreva motivo que voce nao verificou no codigo. A pergunta que pegou tres diagnosticos falsos neste projeto e: isso tambem aparece onde deu certo? E leia o arquivo INTEIRO antes de concluir: num destes achados, ler so um trecho fazia o portao de assinatura do Slack parecer quebrado quando nao esta.",
     "PRAZO: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit) - procure REVISAR-EM nas notas."
   ],
   "ignored_warnings": [
@@ -22,7 +24,7 @@
       },
       "user_input": null,
       "confidence": "Medium",
-      "note": "FALSO POSITIVO quanto ao permit!. O endpoint e o webhook do Slack e nao tem sessao: a cerca e a assinatura. O prepend_before_action verify_slack_signature! devolve head :unauthorized quando o HMAC nao casa - conferido lendo o arquivo INTEIRO em 11/10/2026, porque ler so um trecho faz as linhas de retorno falso do predicado valid_slack_signature? parecerem um portao que nao interrompe. ATENCAO: com SLACK_SIGNING_SECRET vazio o upstream PULA a verificacao de proposito, so registrando aviso no log - anotado em issue separada."
+      "note": "FALSO POSITIVO quanto ao permit!. O endpoint e o webhook do Slack e nao tem sessao: a cerca e a assinatura. O prepend_before_action verify_slack_signature! devolve head :unauthorized quando o HMAC nao casa - conferido lendo o arquivo INTEIRO em 11/10/2026, porque ler so um trecho faz as linhas de retorno falso do predicado valid_slack_signature? parecerem um portao que nao interrompe. ATENCAO: com SLACK_SIGNING_SECRET vazio o upstream PULA a verificacao de proposito, so registrando aviso no log - anotado na issue: O webhook do Slack aceita requisicao sem assinatura quando o segredo nao esta configurado."
     },
     {
       "fingerprint": "0a50e6b71fa05f9f5189685275dd21c654f5407ad175d455a54387a3b09b0dcd",
@@ -112,7 +114,7 @@
       },
       "user_input": ":account_id",
       "confidence": "High",
-      "note": "FALSO POSITIVO quanto a mass assignment: receber account_id E o proposito da API de plataforma, que exige token de PlatformApp (nasce so no Super Admin). ATENCAO: o create e o unico verbo sem validate_platform_app_permissible, logo um token de plataforma pode criar bot numa conta que ele nao administra - anotado em issue separada."
+      "note": "FALSO POSITIVO quanto a mass assignment: receber account_id E o proposito da API de plataforma, que exige token de PlatformApp (nasce so no Super Admin). ATENCAO: o create e o unico verbo sem validate_platform_app_permissible, logo um token de plataforma pode criar bot numa conta que ele nao administra - anotado na issue: API de plataforma: o create de agent bot aceita account_id de conta que o aplicativo nao administra."
     },
     {
       "fingerprint": "1c53a094c0f421d273ca8ec211db548275d5fc36d320adbeaef54d162f39ab8d",
@@ -187,7 +189,7 @@
       },
       "user_input": ":account_id",
       "confidence": "High",
-      "note": "FALSO POSITIVO quanto a escalada de privilegio. profile_params e compartilhado com set_active_account, que precisa do account_id. A tabela users NAO tem coluna account_id (conferido no db/schema.rb em 11/10/2026) e o model nao declara acessor, portanto nao existe privilegio a escalar por aqui. ATENCAO: justamente por o atributo nao existir, assign_attributes pode levantar UnknownAttributeError e devolver 500 - defeito de robustez, anotado em issue separada."
+      "note": "FALSO POSITIVO quanto a escalada de privilegio. profile_params e compartilhado com set_active_account, que precisa do account_id. A tabela users NAO tem coluna account_id (conferido no db/schema.rb em 11/10/2026) e o model nao declara acessor, portanto nao existe privilegio a escalar por aqui. ATENCAO: justamente por o atributo nao existir, assign_attributes pode levantar UnknownAttributeError e devolver 500 - defeito de robustez, anotado na issue: PUT /api/v1/profile com profile[account_id] devolve 500."
     },
     {
       "fingerprint": "31cd89f0af2f54aed328de79d7658691d3434075d9192880f0c7d5ac06f58b83",
@@ -600,7 +602,7 @@
       "location": null,
       "user_input": null,
       "confidence": "High",
-      "note": "REAL - e este e o unico dos 40 que e. O suporte de SEGURANCA do Rails 7.2 terminou em 09/08/2026: a proxima falha grave do Rails pode nao ter correcao para a nossa linha. Nao da para consertar aqui e agora - a base deste fork e o Chatwoot 4.18, que roda 7.2, e subir de linha exige o upstream subir primeiro. Esta ignorado COM PRAZO porque o aviso ja foi lido e virou issue; o que nao se pode permitir e ele desaparecer calado. REVISAR-EM: 2026-11-07, data em que o Rails 8.0 tambem perde o suporte de seguranca e a unica linha viva passa a ser a 8.1 - de modo que a revisao de novembro decide o destino, nao so prorroga."
+      "note": "REAL - e este e o unico dos 40 que e. O suporte de SEGURANCA do Rails 7.2 terminou em 09/08/2026: a proxima falha grave do Rails pode nao ter correcao para a nossa linha. Nao da para consertar aqui e agora - a base deste fork e o Chatwoot 4.18, que roda 7.2, e subir de linha exige o upstream subir primeiro. Esta ignorado COM PRAZO porque o aviso ja foi lido e virou a issue: Rails 7.2 esta sem suporte de seguranca desde 09/08/2026; o que nao se pode permitir e ele desaparecer calado. REVISAR-EM: 2026-11-07, data em que o Rails 8.0 tambem perde o suporte de seguranca e a unica linha viva passa a ser a 8.1 - de modo que a revisao de novembro decide o destino, nao so prorroga."
     },
     {
       "fingerprint": "d9de1107420edd671f6b4d10c7c1b1b1404f57e9ea4919d45de6f1f2ba29c799",
