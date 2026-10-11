@@ -1,31 +1,88 @@
----
+# Avisos de segurança que este projeto conhece e decidiu conviver — por ora.
+#
+# 🔴 POR QUE ESTE ARQUIVO FOI REESCRITO EM 11/10/2026: ele tinha 14 entradas, e onze já não
+# correspondiam a nada. Entre elas estava a CVE-2026-66066 — a execução remota de código no Active
+# Storage — ignorada com o motivo "sem correção no Rails 7.1, remover ao chegar em 7.2.3.1+". A
+# `.43` subiu para o `rails 7.2.3.2` em 07/10 e ninguém voltou aqui. Enquanto a linha existisse, o
+# portão ficaria calado se o RCE voltasse.
+#
+# As onze saíram depois de MEDIR, não de supor: o `bundle-audit` rodou contra este `Gemfile.lock`
+# com a lista VAZIA, num contêiner Ruby descartável, e acusou exatamente seis avisos — os seis
+# abaixo. As dez CVEs da era Rails 7.1 e a CVE-2021-41098 não aparecem mais.
+#
+# 🔴 E havia o outro lado do mesmo defeito: três dos seis reais NÃO estavam listados, então o
+# `security-scan` do Free vivia VERMELHO — era o único job vermelho da `main`. Um portão que vive
+# vermelho não acusa mais nada: o olho lê "fail" e completa "é o de sempre". Foi assim que o RCE
+# ficou escondido por meses atrás deste mesmo passo.
+#
+# 🔴 E POR QUE ELE TEM PRAZO: lista de ignorados sem revisão é a mesma cegueira, só mais
+# silenciosa. O workflow falha sozinho quando a data abaixo passar, obrigando a reexaminar em vez
+# de esquecer — e falha também se alguém apagar a data.
+#
+# 🔴 ESTA LISTA VAI CRESCER, E O CRESCIMENTO É O DADO. A base do bundle-audit é baixada a cada
+# execução. Quando uma gem presa por dependência acumula avisos — e o `ruby_llm` já tem TRÊS ReDoS
+# de criticidade alta —, a pergunta deixa de ser "ignoro mais um?" e passa a ser "por quanto tempo
+# ainda dependemos disto?". É para essa conversa que a data existe.
+#
+# REVISAR-EM: 2026-11-07
+#
+# Ao revisar: conferir se a restrição que impede a correção caiu. Se caiu, subir a gem e APAGAR a
+# linha daqui. Nunca estender a data sem reler o motivo. E nunca deixar linha que já não é acusada:
+# foi assim que esta lista chegou a onze entradas mortas.
+
 ignore:
-  - CVE-2021-41098 # https://github.com/chatwoot/chatwoot/issues/3097 (update once azure blob storage is updated)
-  - GHSA-57hq-95w6-v4fc # Devise confirmable race condition — patched locally in User model (remove once on Devise 5+)
-  # Devise 5 is currently blocked by devise-secure_password/devise_token_auth/devise-two-factor.
-  # Chatwoot does not enable Timeoutable, so the timeout redirect path is not reachable.
-  - GHSA-jp94-3292-c3xv
-  # Rails 7.1 has no patched release for the Active Storage proxy range
-  # advisories. Chatwoot limits proxy range requests locally.
-  - CVE-2026-33658
-  # Rails 7.1 has no patched release for this Active Storage direct-upload
-  # advisory. Chatwoot filters internal metadata keys locally.
-  - CVE-2026-33173
-  - CVE-2026-33174
-  # Rails 7.1 has no patched release for these Rails advisories. These are not
-  # reachable through Chatwoot's current usage patterns and should be removed
-  # once we upgrade to Rails 7.2.3.1+.
-  - CVE-2026-33168
-  - CVE-2026-33169
-  - CVE-2026-33170
-  - CVE-2026-33176
-  - CVE-2026-33195
-  - CVE-2026-33202
-  # No Rails 7.1 patch for this Active Storage advisory; mitigated locally.
-  # Remove once on Rails 7.2.3.1+.
-  - CVE-2026-66066
-  # RubyLLM's name-normalization ReDoS is reported on Ruby 3.1; we require Ruby 3.4.4.
-  # Built-in tool names are fixed; custom tools use bounded slugs and override normalization.
-  # Patched 2.0 releases need an ai-agents migration (currently constrained to RubyLLM 1.x).
-  # Remove when a supported patched RubyLLM/ai-agents combination is adopted.
+  # rack-proxy 0.7.7 — GHSA-42qh-8mx8-7wqm
+  # Correção: >= 1.0.3. IMPOSSÍVEL hoje: a gem vem do `vite_rails`, e o `vite_ruby` exige
+  # `rack-proxy (~> 0.6, >= 0.6.1)` — ou seja, proíbe 1.x. Subir exige subir o vite_ruby primeiro.
+  # ⚠️ O título do aviso diz "in rack-proxy 1.x", e a versão instalada é 0.7.7: vale conferir, na
+  # revisão, se o alcance do aviso é largo demais e 0.x nunca teve o defeito.
+  # O que o rack-proxy serve aqui é o proxy do servidor de desenvolvimento do vite — conferir
+  # também se ele chega a ser carregado em produção.
+  - GHSA-42qh-8mx8-7wqm
+
+  # ruby_llm 1.15.0 — CVE-2026-67987 e CVE-2026-67989, ReDoS, criticidade alta
+  # Correção: >= 2.0.0.rc1. IMPOSSÍVEL hoje por dois motivos: o `ai-agents` exige
+  # `ruby_llm (~> 1.14)`, que proíbe 2.x; e a correção só existe em RELEASE CANDIDATE, que não é
+  # coisa de se pôr em instalação de cliente.
+  - CVE-2026-67987
+  - CVE-2026-67989
+
+  # ruby_llm 1.15.0 — CVE-2026-67991, o TERCEIRO ReDoS da mesma gem, apareceu em 07/10
   - CVE-2026-67991
+
+  # devise 4.9.4 — GHSA-57hq-95w6-v4fc (corrida ao confirmar troca de e-mail) e CVE-2026-40295
+  # (redirecionamento aberto via `request.referrer` no timeout de sessão).
+  # Correções: >= 5.0.3 e >= 5.0.4. IMPOSSÍVEL aqui: TRÊS gems companheiras prendem o devise em 4.x
+  #   devise-secure_password  ->  devise (>= 4.0.0, < 5.0.0)
+  #   devise-two-factor       ->  devise (~> 4.0)
+  #   devise_token_auth       ->  devise (> 3.5.2, < 5)
+  #
+  # ✅ O que REDUZ os dois avisos hoje: a corrida do GHSA-57hq já tem conserto LOCAL. O
+  # `app/models/user.rb` sobrepõe
+  # `postpone_email_change_until_confirmation_and_regenerate_confirmation_token` e aplica a mesma
+  # correção do Devise 5.0.3, marcando `unconfirmed_email` como sujo antes de atribuir. E o
+  # Chatwoot não habilita o Timeoutable, então o caminho do CVE-2026-40295 não é alcançável.
+  #
+  # 🔴 E AQUI ESTÁ O QUE MUDOU, MEDIDO EM 11/10/2026: estes dois avisos JÁ TÊM SAÍDA.
+  #
+  # O comentário do override dizia que o Devise 5 era impossível porque o `devise-two-factor` só o
+  # suportou na v6.4.0, que exige Rails >= 7.2 — e estávamos na 7.1. Desde 07/10 estamos no
+  # `rails 7.2.3.2`, e esse impedimento caiu. Dos três companheiros, nenhum prende mais:
+  #   devise-two-factor 6.4.1   ->  aceita devise 5
+  #   devise_token_auth 1.3.0   ->  aceita devise 5
+  #   devise-secure_password 2.2.3 (18/03/2026)  ->  EXIGE devise >= 5.0.3
+  #
+  # Quem prende é o nosso próprio `Gemfile`: `gem 'devise-secure_password', '2.2.1'` é PINO EXATO,
+  # o único exato dos quatro — então nenhum `bundle lock --update devise` consegue mexer.
+  # Afrouxando para `>= 2.2.3`, a resolução sai limpa e mexe em QUATRO gems:
+  #   devise 4.9.4 -> 5.0.4 · devise-secure_password 2.2.1 -> 2.2.3
+  #   devise-two-factor 6.1.0 -> 6.4.1 · devise_token_auth 1.2.5 -> 1.3.0
+  #
+  # E a 5.0.4 é exatamente a versão que fecha OS DOIS avisos (um pede >= 5.0.3, o outro >= 5.0.4),
+  # além de permitir APAGAR o remendo local do `user.rb`.
+  #
+  # Por que não foi feito junto: Devise 4 -> 5 é salto de linha maior, e o
+  # `devise_token_auth` sobe com ele — pede a suíte inteira, não carona num conserto de CI. Está
+  # medido e anotado em issue para sair sozinho.
+  - GHSA-57hq-95w6-v4fc
+  - CVE-2026-40295

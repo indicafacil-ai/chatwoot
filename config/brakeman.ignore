@@ -1,0 +1,801 @@
+{
+  "_LEIA_PRIMEIRO": [
+    "Este arquivo existe porque um portao que vive vermelho nao acusa mais nada. Ate 11/10/2026 o Brakeman rodava com continue-on-error: true e um comentario dizendo 40 achados preexistentes - ou seja, aceitava o 41o sem ninguem ver. Foi exatamente assim que o RCE do Active Storage (CVE-2026-66066) ficou escondido atras do bundle-audit vermelho por meses.",
+    "Os 40 foram lidos UM A UM em 11/10/2026, cada um com o motivo escrito no campo note da sua entrada. Trinta e nove sao falso positivo ou funcionalidade; UM e real (o fim do suporte de seguranca do Rails 7.2) e esta ignorado COM PRAZO.",
+    "Nao acrescente entrada aqui sem escrever o motivo, e nao escreva motivo que voce nao verificou no codigo. A pergunta que pegou tres diagnosticos falsos neste projeto e: isso tambem aparece onde deu certo?",
+    "PRAZO: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit) - procure REVISAR-EM nas notas."
+  ],
+  "ignored_warnings": [
+    {
+      "fingerprint": "08c4d5f8b16f49d05dda6660c154c237c866f652bccc845655483d901ecf1109",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/controllers/api/v1/integrations/webhooks_controller.rb",
+      "line": 46,
+      "code": "params.permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Integrations::WebhooksController",
+        "method": "permitted_params"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO quanto ao permit!. O endpoint e o webhook do Slack e nao tem sessao: a cerca e a assinatura. O prepend_before_action verify_slack_signature! devolve head :unauthorized quando o HMAC nao casa - conferido lendo o arquivo INTEIRO em 11/10/2026, porque ler so um trecho faz as linhas de retorno falso do predicado valid_slack_signature? parecerem um portao que nao interrompe. ATENCAO: com SLACK_SIGNING_SECRET vazio o upstream PULA a verificacao de proposito, so registrando aviso no log - anotado em issue separada."
+    },
+    {
+      "fingerprint": "0a50e6b71fa05f9f5189685275dd21c654f5407ad175d455a54387a3b09b0dcd",
+      "warning_type": "Dangerous Send",
+      "check_name": "Send",
+      "message": "User controlled method execution",
+      "file": "app/builders/v2/reports/outgoing_messages_count_builder.rb",
+      "line": 11,
+      "code": "send(\"build_by_#{params[:group_by]}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "V2::Reports::OutgoingMessagesCountBuilder",
+        "method": "build"
+      },
+      "user_input": "params[:group_by]",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. O unico chamador e ReportsController#outgoing_messages_count, que responde 422 a tudo que nao esteja em OUTGOING_MESSAGES_ALLOWED_GROUP_BY (agent/team/inbox/label) - exatamente os quatro metodos build_by_* que existem no builder. Conferido em 11/10/2026: lista e metodos casam um a um."
+    },
+    {
+      "fingerprint": "10018ab3fefaca0e8fe44cf5ba333c81c9ae8eb3d63f9f6123c8add5bee4ca0b",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "enterprise/app/controllers/api/v1/accounts/captain/assistants_controller.rb",
+      "line": 158,
+      "code": "params[:assistant][:config][:audience].permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::Captain::AssistantsController",
+        "method": "permit_audience_config"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. enterprise/: o bloco de audiencia e configuracao de forma livre do assistente, atras de check_authorization(Captain::Assistant)."
+    },
+    {
+      "fingerprint": "100cacacacfde599fce7ff4d0f54548eef0c975aefab161be511d3e67ad141bb",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/profiles_controller.rb",
+      "line": 61,
+      "code": "params.require(:profile).permit(:account_id, :auto_offline)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::ProfilesController",
+        "method": "auto_offline_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. Mesmo caso de availability_params: busca escopada em @user.account_users, id alheio da 404."
+    },
+    {
+      "fingerprint": "111f739aa87b5c7022feb410f9c625f8b7de75520f95b7e210da820c57bd559b",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/services/sla/backfill_applied_sla_completed_at_service.rb",
+      "line": 97,
+      "code": "AppliedSla.connection.exec_update(\"UPDATE #{AppliedSla.connection.quote_table_name(AppliedSla.table_name)} AS applied_slas\\nSET completed_at = backfill.completed_at\\nFROM (VALUES #{resolution_times.map do\n \"(#{AppliedSla.connection.quote(id)}, #{AppliedSla.connection.quote(completed_at)}::timestamp)\"\n end.join(\", \")}) AS backfill(id, completed_at)\\nWHERE applied_slas.id = backfill.id\\n  AND applied_slas.completed_at IS NULL\\n\".squish, \"Backfill applied SLA completed_at\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sla::BackfillAppliedSlaCompletedAtService",
+        "method": "bulk_update"
+      },
+      "user_input": "AppliedSla.connection.quote(completed_at)",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. enterprise/: o VALUES e montado a partir de ids e carimbos lidos do proprio banco, nao de params."
+    },
+    {
+      "fingerprint": "122a2e7746e1ec0bf13747119139653e92a7565377442badb7e00d2b2dd43ffb",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/platform/api/v1/agent_bots_controller.rb",
+      "line": 40,
+      "code": "params.permit(:name, :description, :account_id, :outgoing_url, :avatar, :avatar_url)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Platform::Api::V1::AgentBotsController",
+        "method": "agent_bot_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO quanto a mass assignment: receber account_id E o proposito da API de plataforma, que exige token de PlatformApp (nasce so no Super Admin). ATENCAO: o create e o unico verbo sem validate_platform_app_permissible, logo um token de plataforma pode criar bot numa conta que ele nao administra - anotado em issue separada."
+    },
+    {
+      "fingerprint": "1c53a094c0f421d273ca8ec211db548275d5fc36d320adbeaef54d162f39ab8d",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 45,
+      "code": "Arel.sql(\"COUNT(*) FILTER (WHERE status = #{Captain::AssistantResponse.statuses[\"approved\"]})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "faq_stats"
+      },
+      "user_input": "Captain::AssistantResponse.statuses[\"approved\"]",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "1ef03588cfb959a099b3f18fdbd87cea1185d27d73ca602d08f4dbbd838a20d2",
+      "warning_type": "Cross-Site Scripting",
+      "check_name": "CrossSiteScripting",
+      "message": "Unescaped model attribute",
+      "file": "app/views/layouts/_portal_scripts.html.erb",
+      "line": 104,
+      "code": "Portal.find_by(:custom_domain => request.host).custom_body_html",
+      "render_path": [
+        {
+          "type": "controller",
+          "class": "DashboardController",
+          "method": "render_hc_if_custom_domain",
+          "line": 73,
+          "file": "app/controllers/dashboard_controller.rb",
+          "rendered": {
+            "name": "layouts/portal",
+            "file": "app/views/layouts/portal.html.erb"
+          }
+        },
+        {
+          "type": "template",
+          "name": "layouts/portal",
+          "line": 15,
+          "file": "app/views/layouts/portal.html.erb",
+          "rendered": {
+            "name": "layouts/_portal_scripts",
+            "file": "app/views/layouts/_portal_scripts.html.erb"
+          }
+        }
+      ],
+      "location": {
+        "type": "template",
+        "template": "layouts/_portal_scripts"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO por ser a funcionalidade. custom_body_html, mesmo caso de custom_head_html: so admin grava, e e para isso que o campo existe."
+    },
+    {
+      "fingerprint": "275ce51012e6ffcdb337177624d0af58ae97c765f31b9617c202d945190777ed",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/profiles_controller.rb",
+      "line": 71,
+      "code": "params.require(:profile).permit(:email, :name, :display_name, :avatar, :message_signature, :account_id, :ui_settings => ({}))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::ProfilesController",
+        "method": "profile_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO quanto a escalada de privilegio. profile_params e compartilhado com set_active_account, que precisa do account_id. A tabela users NAO tem coluna account_id (conferido no db/schema.rb em 11/10/2026) e o model nao declara acessor, portanto nao existe privilegio a escalar por aqui. ATENCAO: justamente por o atributo nao existir, assign_attributes pode levantar UnknownAttributeError e devolver 500 - defeito de robustez, anotado em issue separada."
+    },
+    {
+      "fingerprint": "31cd89f0af2f54aed328de79d7658691d3434075d9192880f0c7d5ac06f58b83",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/controllers/api/v1/accounts/contacts_controller.rb",
+      "line": 48,
+      "code": "params.permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::ContactsController",
+        "method": "export"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. O permit! aqui e payload de FILTRO: segue para Contacts::FilterService, que tem a propria lista branca (a mesma cadeia verificada no achado de filter_service.rb:205)."
+    },
+    {
+      "fingerprint": "4606e1e65bce2e0536310978bd181fac0e3e611ed38ca24ed56cf853e960e0fa",
+      "warning_type": "Cross-Site Scripting",
+      "check_name": "CrossSiteScripting",
+      "message": "Unescaped model attribute",
+      "file": "app/views/layouts/_portal_head.html.erb",
+      "line": 46,
+      "code": "Portal.find_by(:custom_domain => request.host).custom_head_html",
+      "render_path": [
+        {
+          "type": "controller",
+          "class": "DashboardController",
+          "method": "render_hc_if_custom_domain",
+          "line": 73,
+          "file": "app/controllers/dashboard_controller.rb",
+          "rendered": {
+            "name": "layouts/portal",
+            "file": "app/views/layouts/portal.html.erb"
+          }
+        },
+        {
+          "type": "template",
+          "name": "layouts/portal",
+          "line": 4,
+          "file": "app/views/layouts/portal.html.erb",
+          "rendered": {
+            "name": "layouts/_portal_head",
+            "file": "app/views/layouts/_portal_head.html.erb"
+          }
+        }
+      ],
+      "location": {
+        "type": "template",
+        "template": "layouts/_portal_head"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO por ser a funcionalidade. custom_head_html so e gravado por quem passa pelo PortalPolicy#create?/update?, que exigem administrador da conta. Injetar o proprio HTML no portal (analytics, CSS) E o recurso. O alcance do HTML e o portal da propria conta; o censo de 06/10/2026 mediu que TODAS as nossas instalacoes tem uma conta so, logo nao existe admin de outra conta para atingir agente alheio."
+    },
+    {
+      "fingerprint": "56cb812afedebed977625f95d4692eb12c4a51a8bacdb88ae3406861f0065246",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/controllers/api/v1/accounts/conversations_controller.rb",
+      "line": 93,
+      "code": "params.permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::ConversationsController",
+        "method": "filter"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Payload de filtro para Conversations::FilterService, com lista branca propria; atributo ou operador invalido vira 422 pelas CustomExceptions::CustomFilter."
+    },
+    {
+      "fingerprint": "5e29170dd31c62cec7bc0bb08acba4b3603bcdaaab303c753de73daf9deb21ce",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/accounts/agents_controller.rb",
+      "line": 71,
+      "code": "params.require(:agent).permit(:email, :name, :role, :availability, :auto_offline)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::AgentsController",
+        "method": "new_agent_params"
+      },
+      "user_input": ":role",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. AgentsController#check_authorization chama super(User), e UserPolicy#create?/update? exigem account_user.administrator?. Definir papel de agente E a funcionalidade - e so admin da conta a alcanca."
+    },
+    {
+      "fingerprint": "5e6f44ff38b79aaf3be9fe1ea2cad16c7785518ee06a3d8105b134084417546b",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 116,
+      "code": "Arel.sql(\"COUNT(DISTINCT conversation_id) FILTER (WHERE #{window_clause(previous_range)} AND #{\"message_type = #{Message.message_types[:outgoing]} AND private = false\"})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "message_window_metrics"
+      },
+      "user_input": "window_clause(previous_range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "6ec2955b051fe6f9e15339c371e560a84cd3a425de2519163c5703db708fb4e0",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/accounts/contacts/group_members_controller.rb",
+      "line": 87,
+      "code": "params.permit(:role)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::Contacts::GroupMembersController",
+        "method": "update_params"
+      },
+      "user_input": ":role",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Tres cercas: authorize do contato com :update?; lista branca de admin ou member antes de usar; e o membro vem de group_members.find, escopado ao contato. Alem disso e papel DENTRO do grupo de WhatsApp, nao papel no Chatwoot."
+    },
+    {
+      "fingerprint": "7bb945a0c3cfcb2c88e1efd82404a67a6aa3d0a93a01ce52e7ba16460bb2cb23",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 135,
+      "code": "Arel.sql(\"COUNT(DISTINCT conversation_id) FILTER (WHERE name IN (#{quoted(HANDOFF_EVENT_NAMES)}))\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "resolution_counts"
+      },
+      "user_input": "quoted(HANDOFF_EVENT_NAMES)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "7cb5295d627359537a6b90d75457dd14130d6b76089e55455a1a7c09a3128cb0",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/services/search_service.rb",
+      "line": 188,
+      "code": "query.where(\"#{column_name} >= ?\", cap_since_time(params[:since])).where(\"#{column_name} <= ?\", cap_until_time(params[:until]))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "SearchService",
+        "method": "apply_time_filter"
+      },
+      "user_input": "column_name",
+      "confidence": "Weak",
+      "note": "FALSO POSITIVO. Mesmo caso da linha 187: column_name e literal fixa nos quatro chamadores."
+    },
+    {
+      "fingerprint": "85b0df69b0fd03069385ebe461b840dec6a6cc12a94a9499a6208302c2a64143",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/profiles_controller.rb",
+      "line": 57,
+      "code": "params.require(:profile).permit(:account_id, :availability)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::ProfilesController",
+        "method": "availability_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. Aqui account_id e criterio de BUSCA, nao atributo atribuido: a consulta procura dentro das contas do PROPRIO usuario (@user.account_users), logo um id alheio nao encontra nada e devolve 404."
+    },
+    {
+      "fingerprint": "9015ec8e03cc9c8c08f1e47a07a9e7cd2a4a16054bb5aaebccc43df3602c9b20",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "enterprise/app/controllers/api/v1/accounts/captain/assistant_responses_controller.rb",
+      "line": 99,
+      "code": "params.permit(:id, :assistant_id, :page, :document_id, :account_id, :search)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::Captain::AssistantResponsesController",
+        "method": "permitted_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. enterprise/: estes permit sao parametros de CONSULTA (page, search, filter, ids de rota), nao atributos de model. O escopo da conta vem de Current.account na BaseController, nunca do account_id recebido."
+    },
+    {
+      "fingerprint": "9533c85d63ff269f26328de004e0e7d092599a6ec5e422043dc44498c948a917",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 134,
+      "code": "Arel.sql(\"COUNT(DISTINCT conversation_id) FILTER (WHERE #{resolved_clause(range)})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "resolution_counts"
+      },
+      "user_input": "resolved_clause(range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "977e50ba859a3997647c35d7cf1b00ebd4a13a4a5140322b55030223b7b6b76f",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 47,
+      "code": "Arel.sql(\"COUNT(*) FILTER (WHERE status = #{Captain::AssistantResponse.statuses[\"approved\"]} AND documentable_type IS DISTINCT FROM 'Captain::Document')\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "faq_stats"
+      },
+      "user_input": "Captain::AssistantResponse.statuses[\"approved\"]",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "acfa41a32a701199dc3ffab7c2ae142ec6ea63f464b452dc92869cf9e295baa8",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 111,
+      "code": "Arel.sql(\"COUNT(DISTINCT conversation_id) FILTER (WHERE #{window_clause(current_range)})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "message_window_metrics"
+      },
+      "user_input": "window_clause(current_range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. enterprise/: interpolacao de inteiro, nunca de texto. Verificado em 11/10/2026 - as contagens usam enum inteiro (Captain::AssistantResponse.statuses, Message.message_types), assistant.id.to_i explicito, e window_clause passa as datas por connection.quote(). Vale dizer que isto NAO depende de a pasta enterprise/ sair da imagem: nao e injetavel de todo jeito."
+    },
+    {
+      "fingerprint": "af9f10d9c6a631a889b03842f5297db70cdf0b462c1eb6cc39ecb37ffa2fce1c",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 113,
+      "code": "Arel.sql(\"COUNT(*) FILTER (WHERE #{window_clause(current_range)} AND #{\"message_type = #{Message.message_types[:outgoing]} AND private = false\"})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "message_window_metrics"
+      },
+      "user_input": "window_clause(current_range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "b180373ce01a6c79e0d35c5f473c931cf211402584e78422daa9d0fc59591592",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 112,
+      "code": "Arel.sql(\"COUNT(DISTINCT conversation_id) FILTER (WHERE #{window_clause(previous_range)})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "message_window_metrics"
+      },
+      "user_input": "window_clause(previous_range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "bb9434d2eae95f5f221dd053770a06b3a6cd0ed69fa0e53ea4e02773c7f62331",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/services/filter_service.rb",
+      "line": 205,
+      "code": "base_relation.where((\"\" + \" #{build_condition_query(model_filters, query_hash, current_index).strip}\"), { \"value_#{current_index}\" => filter_values(query_hash) }.with_indifferent_access)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "FilterService",
+        "method": "query_builder"
+      },
+      "user_input": "build_condition_query(model_filters, query_hash, current_index)",
+      "confidence": "Weak",
+      "note": "FALSO POSITIVO. O attribute_key so chega ao SQL por tres caminhos, os tres fechados: lista branca em lib/filters/filter_keys.yml; atributo personalizado registrado, que passa por sanitize_sql_array com interrogacao; ou nome desconhecido, que para no retorno de string vazia quando @custom_attribute esta em branco."
+    },
+    {
+      "fingerprint": "bbd9523e2beb2df1155a5d1de907f2218cdb817ca2b4c94bb4b53b7fc4b6eebe",
+      "warning_type": "Command Injection",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "scripts/i18n/fork_translations.rb",
+      "line": 54,
+      "code": "system(\"git rev-parse --verify --quiet #{base}^{commit} > /dev/null\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ForkTranslations",
+        "method": "drift"
+      },
+      "user_input": "base",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO quanto a exposicao. E script de desenvolvimento: nao e servido por rota nenhuma e roda no CI sobre caminhos do proprio repositorio. Nao ha entrada de usuario na cadeia."
+    },
+    {
+      "fingerprint": "c2c1af85ea8750360d02d054d2c7b78a886d7c16391cb75897467ec51985b8ce",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/controllers/api/v1/accounts/contacts_controller.rb",
+      "line": 64,
+      "code": "params.permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::ContactsController",
+        "method": "filter"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Payload de filtro para Contacts::FilterService, com lista branca propria."
+    },
+    {
+      "fingerprint": "ca626aac7670fe9ffc0b27d07c93ec2b212a9af27f31526a13aabc8fdb37bd92",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/builders/conversation_builder.rb",
+      "line": 94,
+      "code": "params[:custom_attributes].permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ConversationBuilder",
+        "method": "conversation_params"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO por contrato. custom_attributes e coluna jsonb de forma livre, igual a additional_attributes."
+    },
+    {
+      "fingerprint": "d07da33456594cc783a5a4dbf87238b9758f27dbe0436163cae58b2f82aa1886",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "enterprise/app/controllers/api/v1/accounts/captain/inboxes_controller.rb",
+      "line": 32,
+      "code": "params.permit(:assistant_id, :id, :account_id, :inbox_id)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::Captain::InboxesController",
+        "method": "permitted_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. enterprise/: parametros de consulta, escopo vindo de Current.account. Ver nota de assistant_responses_controller.rb:99."
+    },
+    {
+      "fingerprint": "d14750216455179f8beb354a88c7d67d6c433369c43b6a5abbdb4ff8ed885a79",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 114,
+      "code": "Arel.sql(\"COUNT(*) FILTER (WHERE #{window_clause(previous_range)} AND #{\"message_type = #{Message.message_types[:outgoing]} AND private = false\"})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "message_window_metrics"
+      },
+      "user_input": "window_clause(previous_range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "d84924377155b41e094acae7404ec2e521629d86f97b0ff628e3d1b263f8101c",
+      "warning_type": "Unmaintained Dependency",
+      "check_name": "EOLRails",
+      "message": "Support for Rails 7.2.3.2 ended on 2026-08-09",
+      "file": "Gemfile.lock",
+      "line": 710,
+      "code": null,
+      "render_path": null,
+      "location": null,
+      "user_input": null,
+      "confidence": "High",
+      "note": "REAL - e este e o unico dos 40 que e. O suporte de SEGURANCA do Rails 7.2 terminou em 09/08/2026: a proxima falha grave do Rails pode nao ter correcao para a nossa linha. Nao da para consertar aqui e agora - a base deste fork e o Chatwoot 4.18, que roda 7.2, e subir de linha exige o upstream subir primeiro. Esta ignorado COM PRAZO porque o aviso ja foi lido e virou issue; o que nao se pode permitir e ele desaparecer calado. REVISAR-EM: 2026-11-07, data em que o Rails 8.0 tambem perde o suporte de seguranca e a unica linha viva passa a ser a 8.1 - de modo que a revisao de novembro decide o destino, nao so prorroga."
+    },
+    {
+      "fingerprint": "d9de1107420edd671f6b4d10c7c1b1b1404f57e9ea4919d45de6f1f2ba29c799",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/platform/api/v1/account_users_controller.rb",
+      "line": 27,
+      "code": "params.permit(:user_id, :role)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Platform::Api::V1::AccountUsersController",
+        "method": "account_user_params"
+      },
+      "user_input": ":role",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. API de plataforma: o PlatformController exige token cujo dono e um PlatformApp, e PlatformApp so nasce no Super Admin. Definir user_id e role em outra conta E o proposito desta API."
+    },
+    {
+      "fingerprint": "db48feb0c8df7ac23364c4d30ca44c5d8caad02afa2f8ce2e76c73d9af3d5895",
+      "warning_type": "Dangerous Send",
+      "check_name": "Send",
+      "message": "User controlled method execution",
+      "file": "app/builders/v2/report_builder.rb",
+      "line": 19,
+      "code": "send(params[:metric])",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "V2::ReportBuilder",
+        "method": "timeseries"
+      },
+      "user_input": "params[:metric]",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. Lista branca de 9 metricas em metric_valid?, na linha imediatamente anterior ao send. Metrica fora da lista nao chega ao send: cai no Rails.logger.error e devolve {}."
+    },
+    {
+      "fingerprint": "e1d68ec08a29416cddf59775776663a13f9fe41ebe26f2a68f0a3d3adac2ce92",
+      "warning_type": "Cross-Site Scripting",
+      "check_name": "CrossSiteScripting",
+      "message": "Unescaped model attribute",
+      "file": "app/views/layouts/_portal_scripts.html.erb",
+      "line": 101,
+      "code": "Portal.find_by(:custom_domain => request.host).channel_web_widget.web_widget_script",
+      "render_path": [
+        {
+          "type": "controller",
+          "class": "DashboardController",
+          "method": "render_hc_if_custom_domain",
+          "line": 73,
+          "file": "app/controllers/dashboard_controller.rb",
+          "rendered": {
+            "name": "layouts/portal",
+            "file": "app/views/layouts/portal.html.erb"
+          }
+        },
+        {
+          "type": "template",
+          "name": "layouts/portal",
+          "line": 15,
+          "file": "app/views/layouts/portal.html.erb",
+          "rendered": {
+            "name": "layouts/_portal_scripts",
+            "file": "app/views/layouts/_portal_scripts.html.erb"
+          }
+        }
+      ],
+      "location": {
+        "type": "template",
+        "template": "layouts/_portal_scripts"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. web_widget_script e gerado pelo proprio Chatwoot a partir do token do widget - nao e texto que usuario escreve."
+    },
+    {
+      "fingerprint": "e2d18452b0fef1e46bfef4e1a15b80522d189a8cb7343adcf1695778aaf1f781",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 49,
+      "code": "Arel.sql(\"(#{open_suggestion_count_sql})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "faq_stats"
+      },
+      "user_input": "open_suggestion_count_sql",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "f02450696cba1f9844f10d6bc9178da6d3d3a5ce959ad18ea2f08519caaacb43",
+      "warning_type": "Mass Assignment",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "enterprise/app/controllers/api/v1/accounts/captain/documents_controller.rb",
+      "line": 90,
+      "code": "params.permit(:assistant_id, :page, :id, :account_id, :filter, :source, :sort, :search_key)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::Captain::DocumentsController",
+        "method": "permitted_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "note": "FALSO POSITIVO. enterprise/: parametros de consulta, escopo vindo de Current.account. Ver nota de assistant_responses_controller.rb:99."
+    },
+    {
+      "fingerprint": "f6d4347109014e6ad57b24969071a88b22c930c1e7532ae1f3abd34022fcf777",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/services/search_service.rb",
+      "line": 187,
+      "code": "query.where(\"#{column_name} >= ?\", cap_since_time(params[:since]))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "SearchService",
+        "method": "apply_time_filter"
+      },
+      "user_input": "column_name",
+      "confidence": "Weak",
+      "note": "FALSO POSITIVO. column_name nunca vem de params: os quatro chamadores de apply_time_filter passam literal fixa. Cadeia verificada ponta a ponta."
+    },
+    {
+      "fingerprint": "f78561cec014681e25d6f14e6d055977af964224b3eedc72f4153ea602f58fdf",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/builders/captain/assistant_stats_builder.rb",
+      "line": 115,
+      "code": "Arel.sql(\"COUNT(DISTINCT conversation_id) FILTER (WHERE #{window_clause(current_range)} AND #{\"message_type = #{Message.message_types[:outgoing]} AND private = false\"})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Captain::AssistantStatsBuilder",
+        "method": "message_window_metrics"
+      },
+      "user_input": "window_clause(current_range)",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
+    },
+    {
+      "fingerprint": "f8618208ada2ec7934f47be147fa418299172ee7376a5991160f92b211bf43b4",
+      "warning_type": "Cross-Site Scripting",
+      "check_name": "CrossSiteScripting",
+      "message": "Unescaped model attribute",
+      "file": "app/views/super_admin/settings/show.html.erb",
+      "line": 52,
+      "code": "SuperAdmin::FeaturesHelper.plan_details",
+      "render_path": [
+        {
+          "type": "controller",
+          "class": "SuperAdmin::SettingsController",
+          "method": "show",
+          "line": 3,
+          "file": "app/controllers/super_admin/settings_controller.rb",
+          "rendered": {
+            "name": "super_admin/settings/show",
+            "file": "app/views/super_admin/settings/show.html.erb"
+          }
+        }
+      ],
+      "location": {
+        "type": "template",
+        "template": "super_admin/settings/show"
+      },
+      "user_input": "SuperAdmin::FeaturesHelper.plan_details",
+      "confidence": "Weak",
+      "note": "FALSO POSITIVO. Tela de Super Admin. plan_details monta a frase com plan e quantity lidos de InstallationConfig, ou seja do banco local, escrito pelo Super Admin. O ping que preenchia esses valores de fora (ChatwootHub.sync_with_hub) NAO tem chamador neste fork - conferido em 11/10/2026."
+    },
+    {
+      "fingerprint": "f8e15b22647d123238b56872e2b32b6cdb1dbf8f0a4dc794af222dd81f1b8233",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/builders/conversation_builder.rb",
+      "line": 93,
+      "code": "params[:additional_attributes].permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ConversationBuilder",
+        "method": "conversation_params"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO por contrato. additional_attributes e coluna jsonb de forma livre: aceitar chave arbitraria E o que a coluna existe para fazer. Nao ha atribuicao a coluna real do model."
+    }
+  ],
+  "brakeman_version": "8.0.5"
+}
