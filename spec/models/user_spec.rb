@@ -97,6 +97,13 @@ RSpec.describe User do
     end
   end
 
+  # Este exemplo parece testar o ActiveRecord, e é de propósito: ele guarda contra uma regressão de
+  # terceiro. Até o `devise_token_auth 1.2.5`, a gem sobrepunha `will_save_change_to_email?` para
+  # devolver `false`, o que quebrava o fluxo de reconfirmação de e-mail — e o `user.rb` tinha um
+  # override local só para desfazer isso. Na `1.3.0` a gem passou a sobrepor
+  # `devise_will_save_change_to_email?` (o gancho interno do Devise) e a deixar o método do
+  # ActiveRecord em paz, então o override local saiu. Se alguma versão futura voltar a mexer no
+  # método do AR, é aqui que aparece.
   context 'when user changes the email' do
     it 'mutates the value' do
       user.email = 'user@example.com'

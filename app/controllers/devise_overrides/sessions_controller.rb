@@ -84,7 +84,7 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
     @token = @resource.create_token(lifespan: @impersonation ? 2.days.to_i : nil)
     @resource.save!
 
-    sign_in(:user, @resource, store: false, bypass: false)
+    sign_in(:user, @resource, store: false)
     # invalidate the token after the user is signed in
     @resource.invalidate_sso_auth_token(params[:sso_auth_token])
   end
@@ -134,7 +134,7 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
     @token = @resource.create_token
     @resource.save!
 
-    sign_in(:user, @resource, store: false, bypass: false)
+    sign_in(:user, @resource, store: false)
     render_create_success
   end
 

@@ -7,8 +7,12 @@
 # portão ficaria calado se o RCE voltasse.
 #
 # As onze saíram depois de MEDIR, não de supor: o `bundle-audit` rodou contra este `Gemfile.lock`
-# com a lista VAZIA, num contêiner Ruby descartável, e acusou exatamente seis avisos — os seis
-# abaixo. As dez CVEs da era Rails 7.1 e a CVE-2021-41098 não aparecem mais.
+# com a lista VAZIA, num contêiner Ruby descartável, e acusou exatamente seis avisos. As dez CVEs
+# da era Rails 7.1 e a CVE-2021-41098 não aparecem mais.
+#
+# ✅ E no mesmo dia os seis viraram QUATRO: as duas do `devise` saíram subindo para o `devise 5.0.4`
+# (ver a nota no fim deste arquivo). O conserto foi possível porque alguém releu o motivo e ele já
+# não era verdade — que é exatamente o serviço que a revisão com prazo existe para prestar.
 #
 # 🔴 E havia o outro lado do mesmo defeito: três dos seis reais NÃO estavam listados, então o
 # `security-scan` do Free vivia VERMELHO — era o único job vermelho da `main`. Um portão que vive
@@ -50,39 +54,17 @@ ignore:
   # ruby_llm 1.15.0 — CVE-2026-67991, o TERCEIRO ReDoS da mesma gem, apareceu em 07/10
   - CVE-2026-67991
 
-  # devise 4.9.4 — GHSA-57hq-95w6-v4fc (corrida ao confirmar troca de e-mail) e CVE-2026-40295
-  # (redirecionamento aberto via `request.referrer` no timeout de sessão).
-  # Correções: >= 5.0.3 e >= 5.0.4. IMPOSSÍVEL aqui: TRÊS gems companheiras prendem o devise em 4.x
-  #   devise-secure_password  ->  devise (>= 4.0.0, < 5.0.0)
-  #   devise-two-factor       ->  devise (~> 4.0)
-  #   devise_token_auth       ->  devise (> 3.5.2, < 5)
+  # ✅ AS DUAS ENTRADAS DO DEVISE SAÍRAM DAQUI EM 11/10/2026, e é assim que esta lista encolhe.
   #
-  # ✅ O que REDUZ os dois avisos hoje: a corrida do GHSA-57hq já tem conserto LOCAL. O
-  # `app/models/user.rb` sobrepõe
-  # `postpone_email_change_until_confirmation_and_regenerate_confirmation_token` e aplica a mesma
-  # correção do Devise 5.0.3, marcando `unconfirmed_email` como sujo antes de atribuir. E o
-  # Chatwoot não habilita o Timeoutable, então o caminho do CVE-2026-40295 não é alcançável.
+  # Eram `GHSA-57hq-95w6-v4fc` (corrida ao confirmar troca de e-mail) e `CVE-2026-40295`
+  # (redirecionamento aberto no timeout de sessão), as duas do `devise 4.9.4`, as duas listadas como
+  # "impossível: três gems companheiras prendem o devise em 4.x".
   #
-  # 🔴 E AQUI ESTÁ O QUE MUDOU, MEDIDO EM 11/10/2026: estes dois avisos JÁ TÊM SAÍDA.
+  # Não era verdade. O impedimento real era o **Rails 7.1**, e ele caiu em 07/10. Quem segurava
+  # depois disso era um PINO EXATO no nosso próprio `Gemfile`. Subimos para o `devise 5.0.4` — que
+  # é exatamente a versão que fecha as duas — mexendo em 4 gems, e dois remendos locais no
+  # `user.rb` foram APAGADOS porque a gem passou a fazer o que eles faziam.
   #
-  # O comentário do override dizia que o Devise 5 era impossível porque o `devise-two-factor` só o
-  # suportou na v6.4.0, que exige Rails >= 7.2 — e estávamos na 7.1. Desde 07/10 estamos no
-  # `rails 7.2.3.2`, e esse impedimento caiu. Dos três companheiros, nenhum prende mais:
-  #   devise-two-factor 6.4.1   ->  aceita devise 5
-  #   devise_token_auth 1.3.0   ->  aceita devise 5
-  #   devise-secure_password 2.2.3 (18/03/2026)  ->  EXIGE devise >= 5.0.3
-  #
-  # Quem prende é o nosso próprio `Gemfile`: `gem 'devise-secure_password', '2.2.1'` é PINO EXATO,
-  # o único exato dos quatro — então nenhum `bundle lock --update devise` consegue mexer.
-  # Afrouxando para `>= 2.2.3`, a resolução sai limpa e mexe em QUATRO gems:
-  #   devise 4.9.4 -> 5.0.4 · devise-secure_password 2.2.1 -> 2.2.3
-  #   devise-two-factor 6.1.0 -> 6.4.1 · devise_token_auth 1.2.5 -> 1.3.0
-  #
-  # E a 5.0.4 é exatamente a versão que fecha OS DOIS avisos (um pede >= 5.0.3, o outro >= 5.0.4),
-  # além de permitir APAGAR o remendo local do `user.rb`.
-  #
-  # Por que não foi feito junto: Devise 4 -> 5 é salto de linha maior, e o
-  # `devise_token_auth` sobe com ele — pede a suíte inteira, não carona num conserto de CI. Está
-  # medido e anotado em issue para sair sozinho.
-  - GHSA-57hq-95w6-v4fc
-  - CVE-2026-40295
+  # Fica como exemplo do que a revisão desta lista é para achar: **um motivo que já não é verdade.**
+  # Ele não envelheceu por descuido de quem o escreveu — estava certo quando foi escrito, e a
+  # condição mudou em outro arquivo.
