@@ -102,6 +102,19 @@ RSpec.describe 'Profile API', type: :request do
         expect(agent.name).to eq('test')
       end
 
+      # O account_id vivia na mesma lista de permitidos do update por causa do
+      # set_active_account, e a tabela users nao tem essa coluna: o assign_attributes
+      # levantava UnknownAttributeError, que nenhum handler trata, e a resposta era 500.
+      it 'ignores an account_id in the body instead of answering 500' do
+        put '/api/v1/profile',
+            params: { profile: { name: 'test', account_id: account.id } },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(agent.reload.name).to eq('test')
+      end
+
       it 'updates custom attributes' do
         put '/api/v1/profile',
             params: { profile: { phone_number: '+123456789' } },
@@ -372,6 +385,17 @@ RSpec.describe 'Profile API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
+      end
+
+      # Era find_by, logo nil.update! -> NoMethodError -> 500. As acoes vizinhas
+      # (availability, auto_offline) sempre usaram find_by!.
+      it 'returns not found for an account the user does not belong to' do
+        put '/api/v1/profile/set_active_account',
+            params: { profile: { account_id: create(:account).id } },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:not_found)
       end
     end
   end
