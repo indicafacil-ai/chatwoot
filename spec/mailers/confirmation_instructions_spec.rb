@@ -7,13 +7,15 @@ RSpec.describe 'Devise::Mailer' do
     let(:account) { create(:account) }
     let!(:confirmable_user) { create(:user, inviter: inviter_val, account: account) }
     let(:inviter_val) { nil }
-    let(:mail) { Devise::Mailer.confirmation_instructions(confirmable_user.reload, nil, {}) }
+    # O Devise passa o token na chamada real (`send_devise_notification(:confirmation_instructions,
+    # @raw_confirmation_token, opts)`), entao o spec tem de passar um tambem. Com `nil` aqui os dois
+    # lados da comparacao ficavam vazios, e o exemplo passava sem provar nada.
+    let(:confirmation_token) { 'KxYc8wAJ1xqaE2zFyPsN' }
+    let(:mail) { Devise::Mailer.confirmation_instructions(confirmable_user.reload, confirmation_token, {}) }
     let(:mail_body) { CGI.unescapeHTML(mail.body.to_s) }
 
     before do
-      # to verify the token in email
       confirmable_user.update!(confirmed_at: nil)
-      confirmable_user.send(:generate_confirmation_token)
     end
 
     it 'has the correct header data' do
@@ -46,7 +48,7 @@ RSpec.describe 'Devise::Mailer' do
     end
 
     it 'sends a confirmation link' do
-      expect(mail.body).to include("app/auth/confirmation?confirmation_token=#{confirmable_user.confirmation_token}")
+      expect(mail.body).to include("app/auth/confirmation?confirmation_token=#{confirmation_token}")
       expect(mail.body).not_to include('app/auth/password/edit')
     end
 
@@ -76,12 +78,12 @@ RSpec.describe 'Devise::Mailer' do
       end
 
       it 'sends a confirmation link' do
-        confirmation_mail = Devise::Mailer.confirmation_instructions(confirmable_user.reload, nil, {})
+        confirmation_mail = Devise::Mailer.confirmation_instructions(confirmable_user.reload, confirmation_token, {})
         confirmation_body = CGI.unescapeHTML(confirmation_mail.body.to_s)
 
         expect(confirmation_body).to include('Confirm your new email address')
         expect(confirmation_body).to include('New email')
-        expect(confirmation_mail.body).to include('app/auth/confirmation?confirmation_token')
+        expect(confirmation_mail.body).to include("app/auth/confirmation?confirmation_token=#{confirmation_token}")
         expect(confirmation_mail.body).not_to include('app/auth/password/edit')
         expect(confirmable_user.unconfirmed_email.blank?).to be false
       end
@@ -94,11 +96,11 @@ RSpec.describe 'Devise::Mailer' do
       end
 
       it 'sends a confirmation link' do
-        confirmation_mail = Devise::Mailer.confirmation_instructions(confirmable_user.reload, nil, {})
+        confirmation_mail = Devise::Mailer.confirmation_instructions(confirmable_user.reload, confirmation_token, {})
         confirmation_body = CGI.unescapeHTML(confirmation_mail.body.to_s)
 
         expect(confirmation_body).to include('Confirm your new email address')
-        expect(confirmation_mail.body).to include('app/auth/confirmation?confirmation_token')
+        expect(confirmation_mail.body).to include("app/auth/confirmation?confirmation_token=#{confirmation_token}")
         expect(confirmation_mail.body).not_to include('app/auth/password/edit')
         expect(confirmable_user.unconfirmed_email.blank?).to be false
       end
