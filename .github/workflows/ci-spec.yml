@@ -8,10 +8,21 @@ on:
       - main
     tags:
       - '*'
+  # Sem isto, uma PR mostrava quatro checagens verdes (rubocop, eslint, as features do
+  # fork e as traducoes) e NENHUMA suite: o verde da tela dizia "o lint passou", e era
+  # lido como "os testes passaram". A suite so rodava depois do merge, na main, onde o
+  # vermelho ja esta dentro. Repositorio publico: o runner do GitHub nao cobra aqui.
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Com a suite rodando em PR, cada push na branch abriria mais nove jobs ao lado dos
+# que ainda estao correndo. Uma execucao nova no mesmo ref cancela a anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
