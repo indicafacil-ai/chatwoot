@@ -134,11 +134,12 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
       # O create e o unico verbo fora do validate_platform_app_permissible, e aceitava
       # account_id livre: um token de plataforma criava um bot dentro de conta alheia.
       it 'refuses an account the app does not own' do
-        post '/platform/api/v1/agent_bots/', params: { name: 'test', account_id: create(:account).id },
-                                             headers: { api_access_token: platform_app.access_token.token }, as: :json
+        expect do
+          post '/platform/api/v1/agent_bots/', params: { name: 'test', account_id: create(:account).id },
+                                               headers: { api_access_token: platform_app.access_token.token }, as: :json
+        end.not_to change(AgentBot, :count)
 
         expect(response).to have_http_status(:unauthorized)
-        expect(AgentBot.count).to be_zero
       end
     end
   end
