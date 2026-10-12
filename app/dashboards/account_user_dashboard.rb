@@ -8,9 +8,13 @@ class AccountUserDashboard < Administrate::BaseDashboard
   # which determines how the attribute is displayed
   # on pages throughout the dashboard.
   ATTRIBUTE_TYPES = {
-    account: Field::BelongsToSearch.with_options(class_name: 'Account', searchable: true, searchable_field: [:name, :id], order: 'id DESC'),
-    user: Field::BelongsToSearch.with_options(class_name: 'User', searchable: true, searchable_field: [:name, :email, :id], order: 'id DESC'),
-    inviter: Field::BelongsToSearch.with_options(class_name: 'User', searchable: true, searchable_field: [:name, :email, :id], order: 'id DESC'),
+    # Os tres campos usavam o Field::BelongsToSearch, de um gem cuja ultima versao (0.10.0,
+    # de 2024) fixa `rails < 8.0` — e o master dele tambem. Nao ha caminho para o Rails 8
+    # com ele dentro. Voltam a ser o campo nativo do Administrate, que perde a busca
+    # enquanto digita nesta tela de Super Admin.
+    account: Field::BelongsTo.with_options(class_name: 'Account', order: 'id DESC'),
+    user: Field::BelongsTo.with_options(class_name: 'User', order: 'id DESC'),
+    inviter: Field::BelongsTo.with_options(class_name: 'User', order: 'id DESC'),
     id: Field::Number,
     role: Field::Select.with_options(collection: AccountUser.roles.keys),
     created_at: Field::DateTime,
