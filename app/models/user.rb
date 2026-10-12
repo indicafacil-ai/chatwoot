@@ -177,10 +177,21 @@ class User < ApplicationRecord
     }
   end
 
-  # https://github.com/lynndylanhurley/devise_token_auth/blob/6d7780ee0b9750687e7e2871b9a1c6368f2085a9/app/models/devise_token_auth/concerns/user.rb#L45
-  # Since this method is overriden in devise_token_auth it breaks the email reconfirmation flow.
-  def will_save_change_to_email?
-    mutations_from_database.changed?('email')
+  # 🔴 Restaura a detecção de troca de e-mail do Devise, que o `devise_token_auth` desliga.
+  #
+  # A gem sobrepõe este gancho para `false` porque tem o PRÓPRIO fluxo de confirmação — mas só o
+  # liga quando `DeviseTokenAuth.send_confirmation_email` é true, e o padrão dela é **false**
+  # (`lib/devise_token_auth/engine.rb:59`). Nós não configuramos isso, então o `ConfirmableSupport`
+  # da gem não é incluído e quem roda é o `postpone_email_change?` do Devise — que pergunta
+  # exatamente este método. Sem esta linha, `unconfirmed_email` fica `nil` e a reconfirmação
+  # simplesmente não acontece.
+  #
+  # ⚠️ ATÉ O `devise_token_auth 1.2.5` a gem desligava `will_save_change_to_email?`, o método do
+  # ActiveRecord, e este override morava lá. A `1.3.0` mudou o alvo para o gancho do Devise, então
+  # o override mudou de nome junto. A implementação abaixo é a de fábrica, copiada do
+  # `devise/orm.rb` — o objetivo é devolver o comportamento padrão, não inventar outro.
+  def devise_will_save_change_to_email?
+    will_save_change_to_email?
   end
 
   def self.from_email(email)
@@ -206,25 +217,6 @@ class User < ApplicationRecord
 
   def mfa_feature_available?
     Chatwoot.mfa_enabled?
-  end
-
-  # Workaround for Devise 4.9.x race condition vulnerability (GHSA-57hq-95w6-v4fc).
-  #
-  # The Confirmable module's reconfirmable flow has a race condition where concurrent
-  # email change requests can desynchronize confirmation tokens, allowing an attacker
-  # to confirm an email they don't own. Fixed in Devise 5.0.3 by persisting
-  # unconfirmed_email before regenerating the confirmation token.
-  #
-  # We can't upgrade to Devise 5.0.3 because devise-two-factor only added Devise 5
-  # support in v6.4.0, which simultaneously raised its Rails minimum to 7.2+.
-  # No released version supports both Devise 5 and Rails 7.1.
-  #
-  # This override applies the same fix locally: force-mark unconfirmed_email
-  # as dirty before assignment so ActiveRecord always writes it, keeping it
-  # in sync with the regenerated confirmation token. Remove once on Devise 5+.
-  def postpone_email_change_until_confirmation_and_regenerate_confirmation_token
-    unconfirmed_email_will_change!
-    super
   end
 
   def signature_position

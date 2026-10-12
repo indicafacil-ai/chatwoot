@@ -83,9 +83,26 @@ gem 'vite_rails'
 gem 'barnes'
 
 ##--- gems for authentication & authorization ---##
-gem 'devise', '>= 4.9.4'
-# 2.2.3 requires Devise 5; Chatwoot remains on Devise 4 for this upgrade stack.
-gem 'devise-secure_password', '2.2.1'
+# 🔴 DIVERGÊNCIA DO FORK, e ela vai conflitar em merge de base. Esperado: resolver mantendo isto.
+#
+# A base fixava `devise-secure_password` em `2.2.1` com o comentário "2.2.3 requires Devise 5;
+# Chatwoot remains on Devise 4 for this upgrade stack." Era PINO EXATO, o único exato dos quatro, e
+# por isso nenhum `bundle lock --update devise` conseguia mexer: ele prendia o devise em 4.9.4, que
+# tem DOIS avisos de segurança sem correção nessa linha:
+#
+#   GHSA-57hq-95w6-v4fc   corrida ao confirmar troca de e-mail   corrige em >= 5.0.3
+#   CVE-2026-40295        redirecionamento aberto no timeout     corrige em >= 5.0.4
+#
+# O impedimento real nunca foi a `devise-secure_password`: era o Rails. O `devise-two-factor` só
+# suportou Devise 5 na 6.4.0, que exige Rails >= 7.2 — e a base estava na 7.1. **Desde 07/10/2026
+# estamos no `rails 7.2.3.2`**, então o impedimento caiu e o pino virou a única coisa segurando.
+#
+# O `devise` entra com piso `>= 5.0.4` de propósito: é piso de SEGURANÇA, não de conveniência, e
+# tem de barrar um downgrade silencioso. Os pisos de `devise_token_auth` e `devise-two-factor`
+# ficam como estavam — exigir devise 5 já obriga o resolvedor a escolher versões compatíveis, e
+# linha não mexida é conflito que não acontece.
+gem 'devise', '>= 5.0.4'
+gem 'devise-secure_password', '>= 2.2.3'
 gem 'devise_token_auth', '>= 1.2.3'
 gem 'rails-i18n', '~> 7.0'
 # two-factor authentication
