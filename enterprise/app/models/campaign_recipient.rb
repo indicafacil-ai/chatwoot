@@ -44,7 +44,7 @@ class CampaignRecipient < ApplicationRecord
   belongs_to :contact
   belongs_to :inbox
 
-  enum status: {
+  enum :status, {
     queued: 0,
     skipped: 1,
     sent: 2,
