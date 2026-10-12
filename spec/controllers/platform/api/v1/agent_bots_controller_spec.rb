@@ -119,6 +119,27 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
         expect(data['name']).to eq('test')
         expect(platform_app.platform_app_permissibles.first.permissible_id).to eq data['id']
       end
+
+      it 'creates a bot inside an account the app owns' do
+        account = create(:account)
+        platform_app.platform_app_permissibles.find_or_create_by!(permissible: account)
+
+        post '/platform/api/v1/agent_bots/', params: { name: 'test', account_id: account.id },
+                                             headers: { api_access_token: platform_app.access_token.token }, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(AgentBot.find(response.parsed_body['id']).account_id).to eq(account.id)
+      end
+
+      # O create e o unico verbo fora do validate_platform_app_permissible, e aceitava
+      # account_id livre: um token de plataforma criava um bot dentro de conta alheia.
+      it 'refuses an account the app does not own' do
+        post '/platform/api/v1/agent_bots/', params: { name: 'test', account_id: create(:account).id },
+                                             headers: { api_access_token: platform_app.access_token.token }, as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(AgentBot.count).to be_zero
+      end
     end
   end
 
