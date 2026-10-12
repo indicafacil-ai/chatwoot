@@ -33,7 +33,7 @@ class Api::V1::ProfilesController < Api::BaseController
   end
 
   def set_active_account
-    @user.account_users.find_by!(account_id: set_active_account_params[:account_id]).update!(active_at: Time.now.utc)
+    @user.account_users.find_by!(account_id: active_account_id).update!(active_at: Time.now.utc)
     head :ok
   end
 
@@ -61,8 +61,12 @@ class Api::V1::ProfilesController < Api::BaseController
     params.require(:profile).permit(:account_id, :auto_offline)
   end
 
-  def set_active_account_params
-    params.require(:profile).permit(:account_id)
+  # Chave de BUSCA, nao atributo: nada aqui e atribuido a um model. Por isso `require` e nao
+  # `permit` — um `permit(:account_id)` diz "pode ser atribuido em massa", que e outra coisa, e
+  # o Brakeman tem razao em apontar. Ausente, o `require` levanta ParameterMissing, que o
+  # `handle_with_exception` ja trata.
+  def active_account_id
+    params.require(:profile).require(:account_id)
   end
 
   def profile_params
