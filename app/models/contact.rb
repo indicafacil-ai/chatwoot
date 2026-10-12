@@ -75,8 +75,8 @@ class Contact < ApplicationRecord # rubocop:disable Metrics/ClassLength
   after_destroy_commit :dispatch_destroy_event
   before_save :sync_contact_attributes
 
-  enum contact_type: { visitor: 0, lead: 1, customer: 2 }
-  enum group_type: { individual: 0, group: 1 }, _prefix: true
+  enum :contact_type, { visitor: 0, lead: 1, customer: 2 }
+  enum :group_type, { individual: 0, group: 1 }, prefix: true
 
   scope :order_on_last_activity_at, lambda { |direction|
     order(

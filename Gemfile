@@ -5,7 +5,11 @@ ruby '3.4.4'
 ##-- base gems for rails --##
 
 gem 'rack-cors', '2.0.0', require: 'rack/cors'
-gem 'rails', '7.2.3.2'
+gem 'rails', '8.1.4'
+# Vinha de carona com o Rails 7: a gem `rails` dependia dele. O Rails 8 nao depende mais,
+# e o `config.assets` dos nossos config/environments/*.rb deixa de existir sem ele
+# (NoMethodError no boot). O painel de Super Admin ainda e servido por esse pipeline.
+gem 'sprockets-rails', '>= 3.4.2'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', require: false
@@ -63,7 +67,11 @@ gem 'streamio-ffmpeg', '~> 3.0'
 gem 'aws-actionmailbox-ses', '~> 0'
 
 ##-- gems for database --#
-gem 'groupdate'
+# >= 6.5.1 por causa do Rails 8: a 6.5.0 foi quem "adicionou suporte ao Active Record 8" e a
+# 6.5.1 consertou o emprestimo de conexao no 7.2+. Na 6.2.1 (abril/2023) o `group_by_period`
+# estourava NoMethodError sobre nil dentro da propria gem -- e o rspec esconde os quadros de
+# gem no backtrace, entao a falha aparecia como se fosse do nosso report_builder.
+gem 'groupdate', '>= 6.5.1'
 gem 'pg'
 gem 'redis'
 gem 'redis-namespace'
@@ -104,7 +112,7 @@ gem 'barnes'
 gem 'devise', '>= 5.0.4'
 gem 'devise-secure_password', '>= 2.2.3'
 gem 'devise_token_auth', '>= 1.2.3'
-gem 'rails-i18n', '~> 7.0'
+gem 'rails-i18n', '~> 8.0'
 # two-factor authentication
 gem 'devise-two-factor', '>= 5.0.0'
 # authorization
@@ -114,7 +122,14 @@ gem 'pundit'
 # super admin
 gem 'administrate', '>= 0.20.1'
 gem 'administrate-field-active_storage', '>= 1.0.3'
-gem 'administrate-field-belongs_to_search', '>= 0.10.0'
+# Outra metade da mesma remocao do `sprockets-rails` acima: o Administrate subiu de 0.20.1
+# para 1.0.0 (o `>=` acima aceita o major) e deixou de depender de `sassc-rails`, porque
+# agora entrega o CSS ja compilado em app/assets/builds. So que ele continua enviando os
+# `.scss` de origem, e o Sprockets resolve o nome logico neles: sem compilador, TODA pagina
+# do Super Admin devolve 500 (`LoadError: cannot load such file -- sassc`), porque o partial
+# de estilo mora no layout. Declarado aqui ate decidirmos usar o CSS compilado que o gem ja
+# traz -- o sassc/libsass esta parado desde 2020, e foi por isso que o Administrate saiu dele.
+gem 'sassc-rails', '>= 2.1.2'
 
 ##--- gems for pubsub service ---##
 # https://karolgalanciak.com/blog/2019/11/30/from-activerecord-callbacks-to-publish-slash-subscribe-pattern-and-event-driven-design/
