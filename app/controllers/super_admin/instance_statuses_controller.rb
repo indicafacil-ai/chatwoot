@@ -23,13 +23,14 @@ class SuperAdmin::InstanceStatusesController < SuperAdmin::ApplicationController
     secret = GlobalConfigService.load('SLACK_SIGNING_SECRET', nil).presence || ENV.fetch('SLACK_SIGNING_SECRET', nil)
     hooks = Integrations::Hook.where(app_id: 'slack').count
 
-    @metrics['Slack webhook signature'] = if secret.present?
-                                            'verified'
-                                          elsif hooks.zero?
-                                            'not verified (no secret), but no Slack integration is connected'
-                                          else
-                                            "NOT VERIFIED: #{hooks} connected Slack integration(s) accept unsigned requests. "                                               'Set SLACK_SIGNING_SECRET.'
-                                          end
+    @metrics['Slack webhook signature'] = slack_signature_status(secret, hooks)
+  end
+
+  def slack_signature_status(secret, hooks)
+    return 'verified' if secret.present?
+    return 'not verified (no secret), but no Slack integration is connected' if hooks.zero?
+
+    "NOT VERIFIED: #{hooks} connected Slack integration(s) accept unsigned requests. Set SLACK_SIGNING_SECRET."
   end
 
   def chatwoot_edition
