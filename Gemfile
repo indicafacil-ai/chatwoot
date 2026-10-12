@@ -262,7 +262,12 @@ end
 
 group :development do
   gem 'annotaterb'
-  gem 'bullet'
+  # >= 8.1.1 por causa do Rails 8.1: a 8.0.7 recusa o Active Record 8.1 com
+  # `Bullet does not support active_record 8.1.4 yet` e o aplicativo NAO SOBE. A 8.1.0 e
+  # quem anunciou suporte ao Rails 8.1, e a 8.1.1 consertou a assinatura de um metodo no
+  # nivel de patch. Como o bullet so e exigido em desenvolvimento, a esteira de specs (que
+  # declara RAILS_ENV: test) passava verde enquanto o boot de desenvolvimento quebrava.
+  gem 'bullet', '>= 8.1.1'
   gem 'letter_opener'
   gem 'scss_lint', require: false
   gem 'web-console', '>= 4.2.1'
