@@ -737,7 +737,10 @@ Rails.application.routes.draw do
 
   # ----------------------------------------------------------------------
   # Used in mailer templates
-  resource :app, only: [:index] do
+  # `resource` e SINGULAR e nunca teve :index — a opcao nao gerava rota nenhuma, e o Rails 7
+  # ignorava em silencio. O Rails 8 levanta ArgumentError. O que importa aqui e o aninhamento
+  # abaixo, entao o bloco fica e a lista de acoes do recurso singular fica vazia.
+  resource :app, only: [] do
     resources :accounts do
       resources :conversations, only: [:show]
     end
