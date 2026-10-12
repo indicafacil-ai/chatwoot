@@ -174,24 +174,6 @@
       "note": "FALSO POSITIVO por ser a funcionalidade. custom_body_html, mesmo caso de custom_head_html: so admin grava, e e para isso que o campo existe."
     },
     {
-      "fingerprint": "275ce51012e6ffcdb337177624d0af58ae97c765f31b9617c202d945190777ed",
-      "warning_type": "Mass Assignment",
-      "check_name": "PermitAttributes",
-      "message": "Potentially dangerous key allowed for mass assignment",
-      "file": "app/controllers/api/v1/profiles_controller.rb",
-      "line": 71,
-      "code": "params.require(:profile).permit(:email, :name, :display_name, :avatar, :message_signature, :account_id, :ui_settings => ({}))",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "Api::V1::ProfilesController",
-        "method": "profile_params"
-      },
-      "user_input": ":account_id",
-      "confidence": "High",
-      "note": "FALSO POSITIVO quanto a escalada de privilegio. profile_params e compartilhado com set_active_account, que precisa do account_id. A tabela users NAO tem coluna account_id (conferido no db/schema.rb em 11/10/2026) e o model nao declara acessor, portanto nao existe privilegio a escalar por aqui. ATENCAO: justamente por o atributo nao existir, assign_attributes pode levantar UnknownAttributeError e devolver 500 - defeito de robustez, anotado na issue: PUT /api/v1/profile com profile[account_id] devolve 500."
-    },
-    {
       "fingerprint": "31cd89f0af2f54aed328de79d7658691d3434075d9192880f0c7d5ac06f58b83",
       "warning_type": "Mass Assignment",
       "check_name": "MassAssignment",
