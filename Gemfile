@@ -67,7 +67,11 @@ gem 'streamio-ffmpeg', '~> 3.0'
 gem 'aws-actionmailbox-ses', '~> 0'
 
 ##-- gems for database --#
-gem 'groupdate'
+# >= 6.5.1 por causa do Rails 8: a 6.5.0 foi quem "adicionou suporte ao Active Record 8" e a
+# 6.5.1 consertou o emprestimo de conexao no 7.2+. Na 6.2.1 (abril/2023) o `group_by_period`
+# estourava NoMethodError sobre nil dentro da propria gem -- e o rspec esconde os quadros de
+# gem no backtrace, entao a falha aparecia como se fosse do nosso report_builder.
+gem 'groupdate', '>= 6.5.1'
 gem 'pg'
 gem 'redis'
 gem 'redis-namespace'

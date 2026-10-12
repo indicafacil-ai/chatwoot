@@ -2473,7 +2473,7 @@ RSpec.describe 'Inboxes API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('param is missing or the value is empty: phone_number')
+        expect(response.parsed_body['error']).to match(/\Aparam is missing or the value is empty( or invalid)?: phone_number\z/)
       end
 
       it 'calls on_whatsapp when supported and returns provider response' do
