@@ -14,7 +14,10 @@ const isSuperAdmin = computed(() => {
   return currentUser.value.type === 'SuperAdmin';
 });
 
-const upgradeUrl = 'https://indicafacil.ai/kanban';
+// A rota /kanban nunca existiu em dominio nenhum: conferido no navegador, devolve a pagina de
+// 'no available server'. A raiz responde e e onde a oferta do Pro esta escrita. A regra e nao
+// apontar antes de o destino responder.
+const upgradeUrl = 'https://indicafacil.ai';
 </script>
 
 <template>

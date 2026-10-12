@@ -2,8 +2,8 @@
   "KANBAN": {
     "PAYWALL": {
       "TITLE": "Mejore su plan para usar Kanban",
-      "DESCRIPTION": "La función Kanban requiere una suscripción a Chatwoot Pro de indicafacil.app.",
-      "UPGRADE_PROMPT": "Suscríbase a Chatwoot Pro de indicafacil.app para acceder a los embudos Kanban, la gestión de tareas y la automatización de flujos de trabajo.",
+      "DESCRIPTION": "La función Kanban requiere una suscripción a %BRAND% Pro.",
+      "UPGRADE_PROMPT": "Suscríbase a %BRAND% Pro para acceder a los embudos Kanban, la gestión de tareas y la automatización de flujos de trabajo.",
       "NON_ADMIN_MESSAGE": "La función Kanban no está disponible en su plan actual. Contacte a su administrador para mejorar el plan.",
       "UPGRADE_NOW": "Mejorar plan"
     }
