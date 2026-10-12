@@ -6,6 +6,10 @@ ruby '3.4.4'
 
 gem 'rack-cors', '2.0.0', require: 'rack/cors'
 gem 'rails', '8.1.4'
+# Vinha de carona com o Rails 7: a gem `rails` dependia dele. O Rails 8 nao depende mais,
+# e o `config.assets` dos nossos config/environments/*.rb deixa de existir sem ele
+# (NoMethodError no boot). O painel de Super Admin ainda e servido por esse pipeline.
+gem 'sprockets-rails', '>= 3.4.2'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', require: false
