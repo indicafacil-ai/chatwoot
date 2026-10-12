@@ -8,6 +8,29 @@ class SuperAdmin::InstanceStatusesController < SuperAdmin::ApplicationController
     chatwoot_edition
     instance_meta
     baileys_api_version
+    slack_webhook_signature
+  end
+
+  # O webhook do Slack nao tem sessao nem token: a assinatura e a UNICA cerca dele. Sem
+  # SLACK_SIGNING_SECRET a verificacao e pulada de proposito, para nao quebrar instalacao que
+  # ja funcionava — e o aviso era uma linha de logger.warn que ninguem le. Aqui ele aparece.
+  #
+  # Medido: sem gancho do Slack, uma requisicao sem assinatura nao consegue nada
+  # (`process_message_payload?` exige `integration_hook.present?`, e o unfurl tambem busca
+  # gancho). O risco e a COMBINACAO gancho configurado + segredo ausente, e e isso que a
+  # linha distingue.
+  def slack_webhook_signature
+    secret = GlobalConfigService.load('SLACK_SIGNING_SECRET', nil).presence || ENV.fetch('SLACK_SIGNING_SECRET', nil)
+    hooks = Integrations::Hook.where(app_id: 'slack').count
+
+    @metrics['Slack webhook signature'] = slack_signature_status(secret, hooks)
+  end
+
+  def slack_signature_status(secret, hooks)
+    return 'verified' if secret.present?
+    return 'not verified (no secret), but no Slack integration is connected' if hooks.zero?
+
+    "NOT VERIFIED: #{hooks} connected Slack integration(s) accept unsigned requests. Set SLACK_SIGNING_SECRET."
   end
 
   def chatwoot_edition
