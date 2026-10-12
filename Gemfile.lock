@@ -855,6 +855,14 @@ GEM
     sass-listen (4.0.0)
       rb-fsevent (~> 0.9, >= 0.9.4)
       rb-inotify (~> 0.9, >= 0.9.7)
+    sassc (2.4.0)
+      ffi (~> 1.9)
+    sassc-rails (2.1.2)
+      railties (>= 4.0.0)
+      sassc (>= 2.0)
+      sprockets (> 3.0)
+      sprockets-rails
+      tilt
     scout_apm (5.3.3)
       parser
     scss_lint (0.60.0)
@@ -957,6 +965,7 @@ GEM
       fast-mcp (~> 1.5.0)
       rack (>= 2.0)
       rails (>= 7.1.0)
+    tilt (2.9.0)
     time_diff (0.3.0)
       activesupport
       i18n
@@ -1151,6 +1160,7 @@ DEPENDENCIES
   ruby-openai
   ruby_llm (>= 1.14.1)
   ruby_llm-schema
+  sassc-rails (>= 2.1.2)
   scout_apm
   scss_lint
   searchkick

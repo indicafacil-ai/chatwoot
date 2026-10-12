@@ -118,6 +118,14 @@ gem 'pundit'
 # super admin
 gem 'administrate', '>= 0.20.1'
 gem 'administrate-field-active_storage', '>= 1.0.3'
+# Outra metade da mesma remocao do `sprockets-rails` acima: o Administrate subiu de 0.20.1
+# para 1.0.0 (o `>=` acima aceita o major) e deixou de depender de `sassc-rails`, porque
+# agora entrega o CSS ja compilado em app/assets/builds. So que ele continua enviando os
+# `.scss` de origem, e o Sprockets resolve o nome logico neles: sem compilador, TODA pagina
+# do Super Admin devolve 500 (`LoadError: cannot load such file -- sassc`), porque o partial
+# de estilo mora no layout. Declarado aqui ate decidirmos usar o CSS compilado que o gem ja
+# traz -- o sassc/libsass esta parado desde 2020, e foi por isso que o Administrate saiu dele.
+gem 'sassc-rails', '>= 2.1.2'
 
 ##--- gems for pubsub service ---##
 # https://karolgalanciak.com/blog/2019/11/30/from-activerecord-callbacks-to-publish-slash-subscribe-pattern-and-event-driven-design/
