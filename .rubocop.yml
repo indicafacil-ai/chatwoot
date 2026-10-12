@@ -238,6 +238,14 @@ Style/DataInheritance:
     - 'app/services/whatsapp/session/**/*'
 
 AllCops:
+  # O rubocop-rails descobre a versao do Rails pelo Gemfile.lock, entao subir a gem liga
+  # sozinho os cops da versao nova — a 8.1 ligou 50 ofensas de Rails/StrongParametersExpect
+  # (`params.require(...).permit(...)` -> `params.expect(...)`) de uma vez.
+  #
+  # O alvo acompanha o `config.load_defaults`, que continua em 7.0, e nao a versao da gem:
+  # subir a base e migrar 50 arquivos de parametros na mesma passagem e o jeito de nao saber
+  # qual dos dois quebrou. Quando os defaults subirem, esta linha sobe junto.
+  TargetRailsVersion: 7.2
   NewCops: enable
   SuggestExtensions: false
   Exclude:
