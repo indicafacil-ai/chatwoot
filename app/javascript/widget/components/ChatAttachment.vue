@@ -12,7 +12,6 @@ import { DirectUpload } from 'activestorage';
 import { mapGetters } from 'vuex';
 import { emitter } from 'shared/helpers/mitt';
 import { useAttachments } from '../composables/useAttachments';
-import { compressImage } from 'widget/helpers/imageCompression';
 
 export default {
   components: { FluentIcon, FileUpload, Spinner },
@@ -41,15 +40,6 @@ export default {
     allowedFileTypes() {
       return ALLOWED_FILE_TYPES;
     },
-    // A camera so aparece em aparelho de toque. No computador, `capture` nao abre camera nenhuma:
-    // abre o mesmo seletor de arquivo do botao ao lado, e dois botoes para a mesma coisa confundem.
-    showCamera() {
-      const temCapture = 'capture' in document.createElement('input');
-      const toque =
-        typeof window.matchMedia === 'function' &&
-        window.matchMedia('(pointer: coarse)').matches;
-      return temCapture && toque;
-    },
   },
   mounted() {
     document.addEventListener('paste', this.handleClipboardPaste);
@@ -76,39 +66,11 @@ export default {
     getFileType(fileType) {
       return fileType.includes('image') ? 'image' : 'file';
     },
-    // Encolhe a foto ANTES de subir. O ganho e de tempo e de banda de quem manda, nao de
-    // qualidade: imagem acima do limite e reduzida do lado do modelo de qualquer jeito. Devolve o
-    // proprio arquivo quando nao ha o que ganhar, e NUNCA lanca — falhar aqui nao pode impedir
-    // alguem de mandar uma foto.
-    async encolherSeForImagem(file) {
-      if (!file || !file.file) return file;
-      const menor = await compressImage(file.file);
-      if (menor === file.file) return file;
-      return {
-        ...file,
-        file: menor,
-        name: menor.name,
-        size: menor.size,
-        type: menor.type,
-      };
-    },
-    // Porta de entrada para quem nao vem do seletor de arquivo — hoje, o gravador de audio.
-    // Fica aqui de proposito: o envio (limite de tamanho, upload direto, aviso de erro) e um so.
-    async uploadRawFile(rawFile) {
-      if (!rawFile) return;
-      await this.onFileUpload({
-        file: rawFile,
-        name: rawFile.name,
-        size: rawFile.size,
-        type: rawFile.type,
-      });
-    },
     async onFileUpload(file) {
-      const pronto = await this.encolherSeForImagem(file);
       if (this.globalConfig.directUploadsEnabled) {
-        await this.onDirectFileUpload(pronto);
+        await this.onDirectFileUpload(file);
       } else {
-        await this.onIndirectFileUpload(pronto);
+        await this.onIndirectFileUpload(file);
       }
     },
     async onDirectFileUpload(file) {
@@ -187,24 +149,6 @@ export default {
 </script>
 
 <template>
-  <FileUpload
-    v-if="showCamera"
-    :size="4096 * 2048"
-    accept="image/*"
-    capture="environment"
-    :data="{
-      direct_upload_url: '/api/v1/widget/direct_uploads',
-      direct_upload: true,
-    }"
-    @input-file="onFileUpload"
-  >
-    <button
-      class="min-h-8 min-w-8 flex items-center justify-center"
-      :aria-label="$t('CAMERA.TAKE_PHOTO')"
-    >
-      <FluentIcon icon="image" />
-    </button>
-  </FileUpload>
   <FileUpload
     ref="upload"
     :size="4096 * 2048"
