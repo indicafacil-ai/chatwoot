@@ -84,6 +84,12 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     enableEmojiPicker: chatwootSettings.enableEmojiPicker ?? true,
     enableEndConversation: chatwootSettings.enableEndConversation ?? true,
 
+    // Quem chega por redirecionamento — do WhatsApp para a nossa pagina de atendimento — ja
+    // decidiu falar. A home do widget nao tem nada a oferecer a essa pessoa: custa um toque e uma
+    // tela inteira, no celular dela. Com isto ligado, o widget abre ja na conversa.
+    // Desligado por padrao: num site de verdade a home mostra disponibilidade e artigos.
+    startInConversation: chatwootSettings.startInConversation || false,
+
     toggle(state) {
       IFrameHelper.events.toggleBubble(state);
     },

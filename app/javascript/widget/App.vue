@@ -223,6 +223,28 @@ export default {
         });
       }
     },
+    // Leva quem veio por redirecionamento direto para a conversa, pulando a home.
+    //
+    // Roda depois de `fetchOldConversations`, e nao antes: a escolha entre o formulario e a
+    // conversa depende de JA existir conversa, e isso so se sabe com a lista na mao.
+    //
+    // 🔴 So age quando a rota ainda e `home`. Mensagem nao lida e campanha ja mandaram o visitante
+    // para outra tela, e elas tem precedencia: quem tem resposta esperando precisa ver a resposta,
+    // nao um campo de digitar em branco.
+    //
+    // A decisao e a MESMA do botao "Iniciar Conversa" (`views/Home.vue`), de proposito: o
+    // formulario de pre-atendimento continua obrigatorio onde estiver ligado. Isto remove um
+    // toque, nao uma regra.
+    goStraightToConversation(startInConversation) {
+      if (!startInConversation) return;
+      if (this.$route.name !== 'home') return;
+
+      if (this.preChatFormEnabled && !this.conversationSize) {
+        this.router.replace({ name: 'prechat-form' });
+        return;
+      }
+      this.router.replace({ name: 'messages' });
+    },
     setUnreadView() {
       const { unreadMessageCount } = this;
       if (!this.showUnreadMessagesDialog || !this.isIFrame) return;
@@ -277,7 +299,10 @@ export default {
         if (message.event === 'config-set') {
           this.setLocale(message.locale);
           this.setBubbleLabel();
-          this.fetchOldConversations().then(() => this.setUnreadView());
+          this.fetchOldConversations().then(() => {
+            this.setUnreadView();
+            this.goStraightToConversation(message.startInConversation);
+          });
           this.fetchAvailableAgents(websiteToken);
           this.setAppConfig(message);
           this.$store.dispatch('contacts/get');
