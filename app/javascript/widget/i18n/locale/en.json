@@ -101,17 +101,6 @@
       "FIELD": "Invalid field"
     }
   },
-  "VOICE_MESSAGE": {
-    "RECORD": "Record a voice message",
-    "RECORDING": "Recording",
-    "STOP_AND_SEND": "Send voice message",
-    "CANCEL": "Discard recording",
-    "PERMISSION_DENIED": "We could not reach your microphone. Allow access in your browser to record a voice message.",
-    "NOT_SUPPORTED": "This browser cannot record audio."
-  },
-  "CAMERA": {
-    "TAKE_PHOTO": "Take a photo"
-  },
   "EMOJI": {
     "PLACEHOLDER": "Search emojis",
     "NOT_FOUND": "No emoji match your search",

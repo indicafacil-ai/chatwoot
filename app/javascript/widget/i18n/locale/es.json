@@ -101,17 +101,6 @@
       "FIELD": "Campo no válido"
     }
   },
-  "VOICE_MESSAGE": {
-    "RECORD": "Grabar un mensaje de voz",
-    "RECORDING": "Grabando",
-    "STOP_AND_SEND": "Enviar mensaje de voz",
-    "CANCEL": "Descartar grabación",
-    "PERMISSION_DENIED": "No pudimos usar tu micrófono. Permite el acceso en el navegador para grabar.",
-    "NOT_SUPPORTED": "Este navegador no puede grabar audio."
-  },
-  "CAMERA": {
-    "TAKE_PHOTO": "Tomar una foto"
-  },
   "EMOJI": {
     "PLACEHOLDER": "Buscar emojis",
     "NOT_FOUND": "Ningún emoji coincide con tu búsqueda",
