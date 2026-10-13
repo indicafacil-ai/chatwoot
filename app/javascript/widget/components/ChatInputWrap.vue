@@ -3,10 +3,13 @@ import { defineAsyncComponent } from 'vue';
 import { mapGetters } from 'vuex';
 
 import ChatAttachmentButton from 'widget/components/ChatAttachment.vue';
+import ChatAudioRecorder from 'widget/components/ChatAudioRecorder.vue';
 import ChatSendButton from 'widget/components/ChatSendButton.vue';
 import { useAttachments } from '../composables/useAttachments';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import ResizableTextArea from 'shared/components/ResizableTextArea.vue';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { emitter } from 'shared/helpers/mitt';
 
 const EmojiPicker = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiPicker.vue')
@@ -16,6 +19,7 @@ export default {
   name: 'ChatInputWrap',
   components: {
     ChatAttachmentButton,
+    ChatAudioRecorder,
     ChatSendButton,
     EmojiPicker,
     FluentIcon,
@@ -48,6 +52,7 @@ export default {
       userInput: '',
       showEmojiPicker: false,
       isFocused: false,
+      isRecording: false,
     };
   },
 
@@ -59,6 +64,11 @@ export default {
     }),
     showAttachment() {
       return this.canHandleAttachments && this.userInput.length === 0;
+    },
+    // Gravar voz e uma forma de anexar: onde o anexo esta desligado, o microfone tambem nao
+    // aparece. Uma regra so, em vez de dois interruptores que um dia divergem.
+    showMicrophone() {
+      return this.showAttachment && !this.isRecording;
     },
     showSendButton() {
       return this.userInput.length > 0;
@@ -128,6 +138,31 @@ export default {
     focusInput() {
       this.$refs.chatInput.focus();
     },
+    startRecording() {
+      this.isRecording = true;
+    },
+    // O audio sobe pelo MESMO caminho do anexo — limite de tamanho, upload direto e aviso de erro
+    // sao um so. Por isso o botao de anexo continua montado durante a gravacao, apenas escondido:
+    // e dele que sai o envio.
+    async onFinishRecording(file) {
+      this.isRecording = false;
+      await this.$refs.attachment?.uploadRawFile(file);
+      this.focusInput();
+    },
+    onCancelRecording() {
+      this.isRecording = false;
+      this.focusInput();
+    },
+    // Chave escrita por extenso, e nao montada: chave dinamica escapa da varredura de traducao e
+    // so aparece como texto faltando na tela de quem ja esta com problema.
+    onRecordingError(motivo) {
+      this.isRecording = false;
+      const aviso =
+        motivo === 'PERMISSION_DENIED'
+          ? this.$t('VOICE_MESSAGE.PERMISSION_DENIED')
+          : this.$t('VOICE_MESSAGE.NOT_SUPPORTED');
+      emitter.emit(BUS_EVENTS.SHOW_ALERT, { message: aviso });
+    },
   },
 };
 </script>
@@ -141,7 +176,14 @@ export default {
     }"
     @keydown.esc="hideEmojiPicker"
   >
+    <ChatAudioRecorder
+      v-if="isRecording"
+      @finish="onFinishRecording"
+      @cancel="onCancelRecording"
+      @error="onRecordingError"
+    />
     <ResizableTextArea
+      v-show="!isRecording"
       id="chat-input"
       ref="chatInput"
       v-model="userInput"
@@ -154,12 +196,25 @@ export default {
       @focus="onFocus"
       @blur="onBlur"
     />
-    <div class="relative flex items-center ltr:pl-2 rtl:pr-2">
+    <div
+      v-show="!isRecording"
+      class="relative flex items-center ltr:pl-2 rtl:pr-2"
+    >
       <ChatAttachmentButton
-        v-if="showAttachment"
+        v-if="canHandleAttachments"
+        v-show="showAttachment"
+        ref="attachment"
         class="text-n-slate-12"
         :on-attach="onSendAttachment"
       />
+      <button
+        v-if="showMicrophone"
+        class="flex items-center justify-center min-h-8 min-w-8 text-n-slate-12"
+        :aria-label="$t('VOICE_MESSAGE.RECORD')"
+        @click="startRecording"
+      >
+        <FluentIcon icon="microphone" />
+      </button>
       <button
         v-if="shouldShowEmojiPicker && hasEmojiPickerEnabled"
         class="flex items-center justify-center min-h-8 min-w-8"
