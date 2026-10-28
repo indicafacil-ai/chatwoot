@@ -24,9 +24,9 @@
 # de esquecer — e falha também se alguém apagar a data.
 #
 # 🔴 ESTA LISTA VAI CRESCER, E O CRESCIMENTO É O DADO. A base do bundle-audit é baixada a cada
-# execução. Quando uma gem presa por dependência acumula avisos — e o `ruby_llm` já tem TRÊS ReDoS
-# de criticidade alta —, a pergunta deixa de ser "ignoro mais um?" e passa a ser "por quanto tempo
-# ainda dependemos disto?". É para essa conversa que a data existe.
+# execução. Quando uma gem presa por dependência acumula avisos — o `ruby_llm` chegou a ter TRÊS
+# ReDoS de criticidade alta, até a base subir para a 2.0 —, a pergunta deixa de ser "ignoro mais um?"
+# e passa a ser "por quanto tempo ainda dependemos disto?". É para essa conversa que a data existe.
 #
 # REVISAR-EM: 2026-11-07
 #
@@ -44,16 +44,6 @@ ignore:
   # também se ele chega a ser carregado em produção.
   - GHSA-42qh-8mx8-7wqm
 
-  # ruby_llm 1.15.0 — CVE-2026-67987 e CVE-2026-67989, ReDoS, criticidade alta
-  # Correção: >= 2.0.0.rc1. IMPOSSÍVEL hoje por dois motivos: o `ai-agents` exige
-  # `ruby_llm (~> 1.14)`, que proíbe 2.x; e a correção só existe em RELEASE CANDIDATE, que não é
-  # coisa de se pôr em instalação de cliente.
-  - CVE-2026-67987
-  - CVE-2026-67989
-
-  # ruby_llm 1.15.0 — CVE-2026-67991, o TERCEIRO ReDoS da mesma gem, apareceu em 07/10
-  - CVE-2026-67991
-
   # ✅ AS DUAS ENTRADAS DO DEVISE SAÍRAM DAQUI EM 11/10/2026, e é assim que esta lista encolhe.
   #
   # Eram `GHSA-57hq-95w6-v4fc` (corrida ao confirmar troca de e-mail) e `CVE-2026-40295`
@@ -68,3 +58,10 @@ ignore:
   # Fica como exemplo do que a revisão desta lista é para achar: **um motivo que já não é verdade.**
   # Ele não envelheceu por descuido de quem o escreveu — estava certo quando foi escrito, e a
   # condição mudou em outro arquivo.
+
+  # ✅ AS DUAS ENTRADAS DO RUBY_LLM SAÍRAM DAQUI EM 28/10/2026, com a base na 4.19.
+  #
+  # Eram `CVE-2026-67987` e `CVE-2026-67989` (ReDoS no `ruby_llm 1.15.0`), listadas como "impossível:
+  # o `ai-agents` prende o `ruby_llm` em 1.x e a correção só existia em release candidate". A base subiu
+  # o `ruby_llm` para a 2.0.0 (release final) junto com o `ai-agents`, e o `bundle-audit` rodado com a
+  # lista sem elas não as acusa mais. O motivo deixou de ser verdade em outro arquivo, de novo.
