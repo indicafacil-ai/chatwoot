@@ -20,7 +20,7 @@ permissions:
 jobs:
   rubocop:
     name: Rubocop (backend)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
 
   eslint:
     name: ESLint (frontend)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +56,7 @@ jobs:
   # nome antigo que delatou uma segunda cópia esquecida na outra edição.
   security-scan:
     name: Brakeman e bundle-audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
