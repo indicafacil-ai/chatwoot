@@ -7,6 +7,16 @@ but each page can define additional JS sources
 by providing a `content_for(:javascript)` block.
 %>
 
+<%#
+O Administrate 1.0 embarca o polyfill de CSS anchor positioning e o roda SEMPRE, no
+`load`, sem checar o navegador. Ele baixa os CSS de novo e troca cada <link> por um
+blob:, e o caminho relativo dos @font-face nao resolve a partir de um blob: -> a Inter
+vira erro e a pagina pisca. O polyfill so serve ao tooltip da busca do Administrate
+antigo, que este painel nao usa. `elements: []` o poe para dormir (isto precisa vir
+ANTES do JS do Administrate).
+%>
+<script>window.ANCHOR_POSITIONING_POLYFILL_OPTIONS = { elements: [] };</script>
+
 <% Administrate::Engine.javascripts.each do |js_path| %>
   <%= javascript_include_tag js_path %>
 <% end %>
