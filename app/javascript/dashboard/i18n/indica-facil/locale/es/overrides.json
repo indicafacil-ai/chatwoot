@@ -125,5 +125,15 @@
       "SHARE_TEXT": "¡Mira mi resumen del año {year} con %BRAND%!",
       "BRANDING": "Hecho con %BRAND%"
     }
+  },
+  "AUTOMATION": {
+    "HEADER_BTN_TXT": "Crear automatización",
+    "COUNT": "{n} automatización | {n} automatizaciones",
+    "SEARCH_PLACEHOLDER": "Buscar reglas de automatización...",
+    "NO_RESULTS": "No se encontraron reglas de automatización que coincidan con tu búsqueda",
+    "ACTIONS": {
+      "REMOVE_ASSIGNED_AGENT": "Eliminar agente asignado",
+      "REMOVE_ASSIGNED_TEAM": "Eliminar equipo asignado"
+    }
   }
 }

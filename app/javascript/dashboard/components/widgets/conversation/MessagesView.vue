@@ -15,6 +15,7 @@ import MessageList from 'next/message/MessageList.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import ContactConversationLink from './ContactConversationLink.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
+import WhatsappNumberMissingBanner from './WhatsappNumberMissingBanner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ResizableEditorWrapper from './ResizableEditorWrapper.vue';
 import ReferralBubble from 'dashboard/components-next/Conversation/ReferralBubble.vue';
@@ -50,6 +51,7 @@ import WhatsappLinkDeviceModal from '../../../routes/dashboard/settings/inbox/co
 import { isInboxAdminInGroup } from 'dashboard/helper/phoneHelper';
 import {
   isReachoutRestricted,
+  isProviderOffline,
   isSendStalled,
   reachoutRestrictionDeadline,
   isMessageCapped,
@@ -62,6 +64,7 @@ export default {
     MessageList,
     ReplyBox,
     Banner,
+    WhatsappNumberMissingBanner,
     ConversationLabelSuggestion,
     ContactConversationLink,
     Spinner,
@@ -423,6 +426,9 @@ export default {
     },
     inboxProviderConnection() {
       return this.currentInbox.provider_connection?.connection;
+    },
+    showProviderOffline() {
+      return isProviderOffline(this.currentInbox.provider_connection);
     },
     inboxReachoutLock() {
       return this.currentInbox.provider_connection?.reachout_time_lock;
@@ -943,7 +949,7 @@ export default {
           :inbox="currentInbox"
         />
         <Banner
-          v-if="inboxProviderConnection !== 'open' || showSendStallWarning"
+          v-if="showProviderOffline || showSendStallWarning"
           color-scheme="alert"
           class="mt-2 mx-2 rounded-lg overflow-hidden"
           :banner-message="providerConnectionBannerMessage"
@@ -960,6 +966,7 @@ export default {
             isAdmin ? onOpenLinkDeviceModal() : onSetupProviderConnection()
           "
         />
+        <WhatsappNumberMissingBanner :conversation="currentChat" />
         <Banner
           v-if="showReachoutRestriction"
           color-scheme="alert"
