@@ -68,7 +68,7 @@ module Enterprise::Concerns::Article
       { role: 'user', content: "title: #{title} \n description: #{description} \n content: #{content}" }
     ]
     headers = { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{openai_api_key}" }
-    body = { model: 'gpt-4o', messages: messages, response_format: { type: 'json_object' } }.to_json
+    body = { model: 'gpt-6-luna', reasoning_effort: 'none', messages: messages, response_format: { type: 'json_object' } }.to_json
     Rails.logger.info "Requesting Chat GPT with body: #{body}"
     # A chat completion: the thinking time before the first byte is the point of the call.
     # `max_retries: 0` because a repeat is a second answer and a second bill.

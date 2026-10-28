@@ -113,3 +113,6 @@ action_log.txt
 last_commit.diff
 last_commit_utf8.diff
 .nodeterm/project.json
+
+# Cache that `rake ruby_llm:refresh_models` writes next to the model registry
+config/llm_models.json.published.json

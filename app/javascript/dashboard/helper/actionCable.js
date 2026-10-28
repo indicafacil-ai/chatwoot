@@ -105,6 +105,8 @@ class ActionCableConnector extends BaseActionCableConnector {
       'internal_chat.reaction.created': this.onInternalChatReactionCreated,
       'internal_chat.reaction.deleted': this.onInternalChatReactionDeleted,
       'internal_chat.poll.voted': this.onInternalChatPollVoted,
+      // The store upserts by ID, so an updated approval card replaces the old one.
+      'copilot.message.updated': this.onCopilotMessageCreated,
       'captain.playground.response': this.onCaptainPlaygroundResponse,
       'voice_call.incoming': this.onVoiceCallIncoming,
       'voice_call.accepted': this.onVoiceCallAccepted,
