@@ -84,11 +84,6 @@
       }
     }
   },
-  "LABEL_MGMT": {
-    "SUGGESTIONS": {
-      "POWERED_BY": "%BRAND% AI"
-    }
-  },
   "LOGIN": {
     "TITLE": "Login to %BRAND%"
   },

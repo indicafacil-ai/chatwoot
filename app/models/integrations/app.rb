@@ -58,10 +58,12 @@ class Integrations::App
 
   def active?(account)
     case params[:id]
+    when 'stripe'
+      stripe_enabled?(account)
     when 'slack'
       GlobalConfigService.load('SLACK_CLIENT_SECRET', nil).present?
     when 'linear'
-      account.feature_enabled?('linear_integration') && GlobalConfigService.load('LINEAR_CLIENT_ID', nil).present?
+      linear_enabled?(account)
     when 'shopify'
       shopify_enabled?(account)
     when 'leadsquared'
@@ -92,7 +94,7 @@ class Integrations::App
       account.webhooks.exists?
     when 'dashboard_apps'
       account.dashboard_apps.exists?
-    when 'shopify'
+    when 'shopify', 'stripe'
       account.hooks.exists?(app_id: id, status: :enabled)
     else
       account.hooks.exists?(app_id: id)
@@ -137,6 +139,14 @@ class Integrations::App
     # Memoised: the integrations index renders name, description and
     # short_description for every app on a single request.
     @brand_name ||= GlobalConfigService.load('INSTALLATION_NAME', 'Chatwoot')
+  end
+
+  def stripe_enabled?(account)
+    account.feature_enabled?('stripe_integration') && Integrations::Stripe::Oauth.configured?
+  end
+
+  def linear_enabled?(account)
+    account.feature_enabled?('linear_integration') && GlobalConfigService.load('LINEAR_CLIENT_ID', nil).present?
   end
 
   def shopify_enabled?(account)

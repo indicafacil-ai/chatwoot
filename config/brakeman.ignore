@@ -5,7 +5,7 @@
     "A edicao paga tem 42 entradas e nao 40: ela tem a pasta indica_facil/, que esta edicao nao tem, e la ha dois achados a mais. Fora esses dois, as impressoes digitais sao as mesmas nas duas - o codigo e o mesmo.",
     "🔴 COMO MEDIR: rode o Brakeman contra a ARVORE INTEIRA. Medir so algumas pastas para economizar transferencia foi o que, na edicao paga, deixou dois achados de codigo proprio passarem na medicao local - eles sumiram do relatorio e sobraram para o CI achar.",
     "Nao acrescente entrada aqui sem escrever o motivo, e nao escreva motivo que voce nao verificou no codigo. A pergunta que pegou tres diagnosticos falsos neste projeto e: isso tambem aparece onde deu certo? E leia o arquivo INTEIRO antes de concluir: num destes achados, ler so um trecho fazia o portao de assinatura do Slack parecer quebrado quando nao esta.",
-    "PRAZO: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit) - procure REVISAR-EM nas notas."
+    "PRAZO REVISAR-EM: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit). A data nasceu na nota do unico aviso real, o fim do suporte de seguranca do Rails 7.2; essa entrada saiu em 28/10/2026 porque o projeto ja esta no Rails 8.1.4 e o Brakeman a dava como obsoleta, e a data fica aqui como prazo de revisao de TODAS as notas desta lista. Nao estenda sem reler os motivos."
   ],
   "ignored_warnings": [
     {
@@ -249,6 +249,24 @@
       "note": "FALSO POSITIVO por ser a funcionalidade. custom_head_html so e gravado por quem passa pelo PortalPolicy#create?/update?, que exigem administrador da conta. Injetar o proprio HTML no portal (analytics, CSS) E o recurso. O alcance do HTML e o portal da propria conta; o censo de 06/10/2026 mediu que TODAS as nossas instalacoes tem uma conta so, logo nao existe admin de outra conta para atingir agente alheio."
     },
     {
+      "fingerprint": "4b5bd89bb28adcf61b8989a955a573da9baaebeae0a098bbe61f938665016bb6",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "enterprise/app/services/conversation_monitors/report.rb",
+      "line": 74,
+      "code": "ApplicationRecord.connection.select_all(\"SELECT width_bucket(EXTRACT(EPOCH FROM matching.created_at)::double precision,\\n                    ARRAY[#{ConversationMonitors::Buckets.new(params, :default_timezone => ((ActiveSupport::TimeZone[monitor.account.reporting_timezone].tzinfo.name or \"UTC\"))).ranges.map do\n range.begin.to_i\n end.join(\",\")}]::double precision[]) - 1 AS position,\\n       COUNT(*) AS count\\nFROM (#{scope.to_sql}) AS matching\\nGROUP BY position\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ConversationMonitors::Report",
+        "method": "bucket_counts"
+      },
+      "user_input": "ConversationMonitors::Buckets.new(params, :default_timezone => ((ActiveSupport::TimeZone[monitor.account.reporting_timezone].tzinfo.name or \"UTC\"))).ranges.map do\n range.begin.to_i\n end.join(\",\")",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. A unica interpolacao e boundaries, os inicios dos baldes como INTEIROS (range.begin.to_i). Os ranges saem de ConversationMonitors::Buckets#build_ranges a partir de since/until, que Buckets.integer! so aceita como Integer de 0 a 999999999999 ou String /\\A\\d{1,12}\\z/ (senao levanta MonitorParametersError), e interval e timezone sao validados contra lista (INTERVAL_HOURS e TZInfo). O resto do SQL e literal e scope.to_sql vem do ActiveRecord. Conferido lendo buckets.rb e report.rb em 28/10/2026."
+    },
+    {
       "fingerprint": "56cb812afedebed977625f95d4692eb12c4a51a8bacdb88ae3406861f0065246",
       "warning_type": "Mass Assignment",
       "check_name": "MassAssignment",
@@ -265,6 +283,24 @@
       "user_input": null,
       "confidence": "Medium",
       "note": "FALSO POSITIVO. Payload de filtro para Conversations::FilterService, com lista branca propria; atributo ou operador invalido vira 422 pelas CustomExceptions::CustomFilter."
+    },
+    {
+      "fingerprint": "5cbedcd0799be3dfafaf0720549d16ad0a6616eb3cc123b71ef0edf12368fe0b",
+      "warning_type": "Mass Assignment",
+      "check_name": "MassAssignment",
+      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
+      "file": "app/controllers/api/v1/accounts/companies/conversations_controller.rb",
+      "line": 14,
+      "code": "params.permit!",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Accounts::Companies::ConversationsController",
+        "method": "filter"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. Payload de filtro para Companies::ConversationFilterService, que herda de Conversations::FilterService (lista branca propria; atributo ou operador invalido vira 422 por CustomExceptions::CustomFilter) e so acrescenta where(contact_id: company.contacts.select(:id)). E o mesmo caso de conversations_controller.rb:94, ja ignorado acima. A autorizacao vem antes, em authorize_company_read!. Conferido lendo o controller e o servico em 28/10/2026."
     },
     {
       "fingerprint": "5e29170dd31c62cec7bc0bb08acba4b3603bcdaaab303c753de73daf9deb21ce",
@@ -591,20 +627,6 @@
       "note": "FALSO POSITIVO. Ver nota de assistant_stats_builder.rb:111."
     },
     {
-      "fingerprint": "d84924377155b41e094acae7404ec2e521629d86f97b0ff628e3d1b263f8101c",
-      "warning_type": "Unmaintained Dependency",
-      "check_name": "EOLRails",
-      "message": "Support for Rails 7.2.3.2 ended on 2026-08-09",
-      "file": "Gemfile.lock",
-      "line": 710,
-      "code": null,
-      "render_path": null,
-      "location": null,
-      "user_input": null,
-      "confidence": "High",
-      "note": "REAL - e este e o unico dos 40 que e. O suporte de SEGURANCA do Rails 7.2 terminou em 09/08/2026: a proxima falha grave do Rails pode nao ter correcao para a nossa linha. Nao da para consertar aqui e agora - a base deste fork e o Chatwoot 4.18, que roda 7.2, e subir de linha exige o upstream subir primeiro. Esta ignorado COM PRAZO porque o aviso ja foi lido e virou a issue: Rails 7.2 esta sem suporte de seguranca desde 09/08/2026; o que nao se pode permitir e ele desaparecer calado. REVISAR-EM: 2026-11-07, data em que o Rails 8.0 tambem perde o suporte de seguranca e a unica linha viva passa a ser a 8.1 - de modo que a revisao de novembro decide o destino, nao so prorroga."
-    },
-    {
       "fingerprint": "d9de1107420edd671f6b4d10c7c1b1b1404f57e9ea4919d45de6f1f2ba29c799",
       "warning_type": "Mass Assignment",
       "check_name": "PermitAttributes",
@@ -714,6 +736,24 @@
       "user_input": ":account_id",
       "confidence": "High",
       "note": "FALSO POSITIVO. enterprise/: parametros de consulta, escopo vindo de Current.account. Ver nota de assistant_responses_controller.rb:99."
+    },
+    {
+      "fingerprint": "f0883c49bdec377e1dcda93d7d48dd25b98bf5fddc24a68b0551f3d40839017a",
+      "warning_type": "SQL Injection",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/mailboxes/imap/imap_mailbox.rb",
+      "line": 52,
+      "code": "ActiveRecord::Base.connection.select_value(\"SELECT pg_advisory_xact_lock(#{@inbox.id}, #{Digest::SHA256.digest(sanitize_mailbox_value(@processed_mail.message_id)).unpack1(\"l>\")})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Imap::ImapMailbox",
+        "method": "duplicate_email?"
+      },
+      "user_input": "Digest::SHA256.digest(sanitize_mailbox_value(@processed_mail.message_id)).unpack1(\"l>\")",
+      "confidence": "Medium",
+      "note": "FALSO POSITIVO. As duas interpolacoes sao INTEIROS: @inbox.id (coluna integer) e lock_key, o resultado de Digest::SHA256.digest(...).unpack1('l>') (inteiro de 32 bits com sinal). O message_id do e-mail, que e texto de fora, so entra no digest, nunca na SQL. Conferido lendo duplicate_email? em 28/10/2026."
     },
     {
       "fingerprint": "f6d4347109014e6ad57b24969071a88b22c930c1e7532ae1f3abd34022fcf777",
