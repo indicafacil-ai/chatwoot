@@ -5,7 +5,7 @@
     "A edicao paga tem 42 entradas e nao 40: ela tem a pasta indica_facil/, que esta edicao nao tem, e la ha dois achados a mais. Fora esses dois, as impressoes digitais sao as mesmas nas duas - o codigo e o mesmo.",
     "🔴 COMO MEDIR: rode o Brakeman contra a ARVORE INTEIRA. Medir so algumas pastas para economizar transferencia foi o que, na edicao paga, deixou dois achados de codigo proprio passarem na medicao local - eles sumiram do relatorio e sobraram para o CI achar.",
     "Nao acrescente entrada aqui sem escrever o motivo, e nao escreva motivo que voce nao verificou no codigo. A pergunta que pegou tres diagnosticos falsos neste projeto e: isso tambem aparece onde deu certo? E leia o arquivo INTEIRO antes de concluir: num destes achados, ler so um trecho fazia o portao de assinatura do Slack parecer quebrado quando nao esta.",
-    "PRAZO: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit) - procure REVISAR-EM nas notas."
+    "PRAZO REVISAR-EM: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit). A data nasceu na nota do unico aviso real, o fim do suporte de seguranca do Rails 7.2; essa entrada saiu em 28/10/2026 porque o projeto ja esta no Rails 8.1.4 e o Brakeman a dava como obsoleta, e a data fica aqui como prazo de revisao de TODAS as notas desta lista. Nao estenda sem reler os motivos."
   ],
   "ignored_warnings": [
     {

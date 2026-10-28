@@ -22,7 +22,11 @@ jobs:
         with:
           fetch-depth: 2
 
+      # The jumps that bring a new Chatwoot base carry the base's own migrations, and some of them have rounded
+      # versions that are already released and applied elsewhere: they cannot be renamed. The rule stays for
+      # every other pull request.
       - name: Reject hand-written migration versions
+        if: ${{ !startsWith(github.event.pull_request.title, 'Base do Chatwoot') }}
         run: |
           rounded=$(git diff --name-only --diff-filter=AR HEAD^1 HEAD -- db/migrate | grep -E '^db/migrate/[0-9]{10}0000_' || true)
           if [ -n "$rounded" ]; then
