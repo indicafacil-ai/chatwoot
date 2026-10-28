@@ -27,7 +27,7 @@ concurrency:
 jobs:
   frontend:
     name: Frontend (vitest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +51,7 @@ jobs:
 
   backend:
     name: Backend (rspec ${{ matrix.ci_node_index }}/8)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
