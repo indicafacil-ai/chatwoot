@@ -14,7 +14,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   include Api::V1::Accounts::Concerns::InboxSecretManagement
 
   def index
-    @inboxes = policy_scope(Current.account.inboxes)
+    @inboxes = inbox_scope
                .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob })
                .order_by_name
   end
@@ -199,6 +199,10 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   private
+
+  def inbox_scope
+    policy_scope(Current.account.inboxes)
+  end
 
   # The session layer's errors are answers, not crashes: a token typed wrong, an instance
   # that is down, a provider that is rate limiting, a connect refused rather than
