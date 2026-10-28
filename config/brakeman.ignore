@@ -45,6 +45,24 @@
       "note": "FALSO POSITIVO. O unico chamador e ReportsController#outgoing_messages_count, que responde 422 a tudo que nao esteja em OUTGOING_MESSAGES_ALLOWED_GROUP_BY (agent/team/inbox/label) - exatamente os quatro metodos build_by_* que existem no builder. Conferido em 11/10/2026: lista e metodos casam um a um."
     },
     {
+      "fingerprint": "0e3ab979e2e4f66c64226246f54c72c414ac8db769f6294eea5f8ab9405625d2",
+      "warning_type": "Dangerous Eval",
+      "check_name": "Evaluation",
+      "message": "Dynamic code evaluation",
+      "file": "app/jobs/migration/whatsapp_connector_topology_job.rb",
+      "line": 21,
+      "code": "Redis.new(Redis::Config.app).eval(Whatsapp::Connector::Consumer::ShardMap::RECORD_TOPOLOGY, :keys => ([Whatsapp::Connector::Consumer.topology_key]), :argv => ([(Redis.new(Redis::Config.app).scan_each(:match => Whatsapp::Connector::Consumer.shard_key(\"*\"), :type => \"stream\", :count => 1000).filter_map do\n key[/:(\\d+)\\z/, 1].to_i\n end.max + 1)]))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Migration::WhatsappConnectorTopologyJob",
+        "method": "perform"
+      },
+      "user_input": null,
+      "confidence": "Weak",
+      "note": "FALSO POSITIVO: e o EVAL do Redis, nao o eval do Ruby. O script Lua e a constante fixa ShardMap::RECORD_TOPOLOGY (heredoc sem interpolacao, shard_map.rb linhas 26 a 34); a chave e o numero de shards entram como PARAMETROS (keys: e argv:), nunca concatenados no script, e o numero vem de um regex /:(\\d+)\\z/ aplicado aos nomes de chave do proprio Redis, nunca de entrada de usuario. Conferido lendo o job INTEIRO e a constante em 28/10/2026. A mesma constante e executada em shard_map.rb:129 por @redis.eval e o Brakeman nao acusa ali, so porque o receptor la e uma variavel de instancia: o padrao e o mesmo. E um job de migracao de dados, uma vez por instalacao, no deploy."
+    },
+    {
       "fingerprint": "10018ab3fefaca0e8fe44cf5ba333c81c9ae8eb3d63f9f6123c8add5bee4ca0b",
       "warning_type": "Mass Assignment",
       "check_name": "MassAssignment",
