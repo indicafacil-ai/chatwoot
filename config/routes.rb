@@ -209,6 +209,7 @@ Rails.application.routes.draw do
               get :attachments
               get :inbox_assistant
               post :sync_history
+              post :recheck_whatsapp_number
               get :reporting_events if ChatwootApp.enterprise?
             end
           end
@@ -383,6 +384,7 @@ Rails.application.routes.draw do
               end
               post :enable_whatsapp_calling, on: :member
               post :disable_whatsapp_calling, on: :member
+              get :whatsapp_calling_status, on: :member
               post :set_inbound_calls, on: :member
               post :set_call_recording, on: :member
             end
@@ -465,6 +467,7 @@ Rails.application.routes.draw do
             post 'manual/connect', to: 'manual_setup#connect'
             get 'manual/:inbox_id/webhook_status', to: 'manual_setup#webhook_status'
             post 'manual/:inbox_id/setup_webhook', to: 'manual_setup#setup_webhook'
+            post 'zapi/:inbox_id/rotate_webhook_url', to: 'zapi_webhook#rotate'
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
@@ -614,6 +617,7 @@ Rails.application.routes.draw do
               get :inbox
               get :label
               get :channel
+              get :handled_conversations
             end
           end
           resources :reports, only: [:index] do
@@ -758,11 +762,13 @@ Rails.application.routes.draw do
   # segments, so the two cannot collide, and keeping them together is what makes that
   # obvious to whoever adds the next provider.
   post 'webhooks/whatsapp/session/uazapi/:channel_id/:webhook_token', to: 'webhooks/whatsapp/uazapi#process_payload'
+  post 'webhooks/whatsapp/zapi/:channel_id/:webhook_token', to: 'webhooks/whatsapp/zapi#process_payload'
   get 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#verify'
   post 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#process_payload'
   get 'webhooks/instagram', to: 'webhooks/instagram#verify'
   post 'webhooks/instagram', to: 'webhooks/instagram#events'
   post 'webhooks/tiktok', to: 'webhooks/tiktok#events'
+  post 'webhooks/resend/inbound', to: 'webhooks/resend#inbound'
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
 
   namespace :twitter do

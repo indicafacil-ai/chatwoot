@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_19_220000) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_16_190000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -804,6 +804,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_19_220000) do
     t.boolean "hmac_verified", default: false
     t.string "pubsub_token"
     t.datetime "group_left_at"
+    t.datetime "whatsapp_missing_checked_at"
     t.index ["contact_id"], name: "index_contact_inboxes_on_contact_id"
     t.index ["inbox_id", "source_id"], name: "index_contact_inboxes_on_inbox_id_and_source_id", unique: true
     t.index ["inbox_id"], name: "index_contact_inboxes_on_inbox_id"
@@ -1229,6 +1230,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_19_220000) do
     t.string "business_name"
     t.jsonb "csat_config", default: {}, null: false
     t.boolean "prevent_assignment_takeover", default: false, null: false
+    t.boolean "drop_assignee_outside_team_on_reopen", default: false, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
@@ -1486,6 +1488,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_19_220000) do
     t.index "((additional_attributes -> 'campaign_id'::text))", name: "index_messages_on_additional_attributes_campaign_id", using: :gin
     t.index ["account_id", "content_type", "created_at"], name: "idx_messages_account_content_created"
     t.index ["account_id", "created_at", "message_type"], name: "index_messages_on_account_created_type"
+    t.index ["account_id", "created_at"], name: "index_messages_on_handled_conversations", where: "((message_type = 1) AND (private = false) AND (((((content_attributes #>> '{}'::text[]))::jsonb ->> 'is_reaction'::text) = 'true'::text) IS NOT TRUE) AND (COALESCE((((content_attributes #>> '{}'::text[]))::jsonb ->> 'automation_rule_id'::text), ''::text) = ''::text) AND (COALESCE((additional_attributes ->> 'campaign_id'::text), ''::text) = ''::text) AND (((sender_type)::text = 'User'::text) OR (COALESCE((((content_attributes #>> '{}'::text[]))::jsonb ->> 'external_echo'::text), ''::text) <> ALL (ARRAY[''::text, 'false'::text]))))", include: ["sender_type", "sender_id", "conversation_id", "inbox_id"]
     t.index ["account_id", "inbox_id"], name: "index_messages_on_account_id_and_inbox_id"
     t.index ["account_id"], name: "index_messages_on_account_id"
     t.index ["content"], name: "index_messages_on_content", opclass: :gin_trgm_ops, using: :gin

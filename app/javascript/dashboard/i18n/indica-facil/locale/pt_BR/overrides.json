@@ -122,6 +122,11 @@
       }
     }
   },
+  "AUTOMATION": {
+    "ACTIONS": {
+      "REMOVE_ASSIGNED_AGENT": "Remover Agente Atribuído"
+    }
+  },
   "AUDIT_LOGS": {
     "SIDEBAR_TXT": "<p><b>Logs de Auditoria</b> </p><p> Os Logs de Auditoria são rastros para eventos e ações em um Sistema %BRAND%. </p>",
     "LIST": {
