@@ -6,6 +6,7 @@ import { messageStamp } from 'shared/helpers/timeHelper';
 import ImageBubble from 'widget/components/ImageBubble.vue';
 import VideoBubble from 'widget/components/VideoBubble.vue';
 import FileBubble from 'widget/components/FileBubble.vue';
+import AudioBubble from 'widget/components/AudioBubble.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { MESSAGE_TYPE } from 'widget/helpers/constants';
 import { isAutoTranslatedReply } from 'widget/helpers/translations';
@@ -25,6 +26,7 @@ export default {
     Avatar,
     UserMessage,
     FileBubble,
+    AudioBubble,
     MessageReplyButton,
     ReplyToChip,
   },
@@ -237,13 +239,10 @@ export default {
                   @error="onVideoLoadError"
                 />
 
-                <audio
+                <AudioBubble
                   v-else-if="attachment.file_type === 'audio'"
-                  controls
-                  class="h-10 dark:invert"
-                >
-                  <source :src="attachment.data_url" />
-                </audio>
+                  :url="attachment.data_url"
+                />
                 <FileBubble v-else :url="attachment.data_url" />
               </div>
             </div>
