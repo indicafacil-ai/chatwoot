@@ -235,8 +235,13 @@ export default {
     // A decisao e a MESMA do botao "Iniciar Conversa" (`views/Home.vue`), de proposito: o
     // formulario de pre-atendimento continua obrigatorio onde estiver ligado. Isto remove um
     // toque, nao uma regra.
-    goStraightToConversation(startInConversation) {
+    //
+    // Espera o roteador ficar pronto: a rota inicial carrega um componente sob demanda, e a lista de
+    // conversas pode chegar antes dela. Sem a espera, a rota ainda nao tem nome e o visitante fica
+    // parado na home.
+    async goStraightToConversation(startInConversation) {
       if (!startInConversation) return;
+      await this.router.isReady();
       if (this.$route.name !== 'home') return;
 
       if (this.preChatFormEnabled && !this.conversationSize) {
