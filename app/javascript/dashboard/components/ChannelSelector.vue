@@ -32,6 +32,15 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  // Unofficial channels serve to test the setup; production goes through the official API.
+  isHomologation: {
+    type: Boolean,
+    default: false,
+  },
+  isRecommended: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const { t } = useI18n();
@@ -66,14 +75,34 @@ const { t } = useI18n();
           {{ title }}
         </h3>
         <Label
-          v-if="isBeta && !isComingSoon"
+          v-if="isRecommended && !isComingSoon"
+          v-tooltip.top="
+            t('INBOX_MGMT.ADD.WHATSAPP.PROVIDER_BADGES.RECOMMENDED_DESCRIPTION')
+          "
+          :label="t('INBOX_MGMT.ADD.WHATSAPP.PROVIDER_BADGES.RECOMMENDED')"
+          color="green"
+          compact
+        />
+        <Label
+          v-if="isHomologation && !isComingSoon"
+          v-tooltip.top="
+            t(
+              'INBOX_MGMT.ADD.WHATSAPP.PROVIDER_BADGES.HOMOLOGATION_DESCRIPTION'
+            )
+          "
+          :label="t('INBOX_MGMT.ADD.WHATSAPP.PROVIDER_BADGES.HOMOLOGATION')"
+          color="amber"
+          compact
+        />
+        <Label
+          v-if="isBeta && !isHomologation && !isComingSoon"
           v-tooltip.top="t('GENERAL.BETA_DESCRIPTION')"
           :label="t('GENERAL.BETA')"
           color="blue"
           compact
         />
         <Label
-          v-if="isLegacy && !isComingSoon"
+          v-if="isLegacy && !isHomologation && !isComingSoon"
           v-tooltip.top="
             t('INBOX_MGMT.ADD.WHATSAPP.LEGACY_PROVIDER.BADGE_DESCRIPTION')
           "

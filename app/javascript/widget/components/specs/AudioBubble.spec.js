@@ -46,4 +46,38 @@ describe('AudioBubble', () => {
     vi.advanceTimersByTime(10000);
     expect(load).not.toHaveBeenCalled();
   });
+
+  describe('quando toca', () => {
+    const comPause = wrapper => {
+      const pause = vi.fn();
+      wrapper.find('audio').element.pause = pause;
+      return pause;
+    };
+
+    it('para um audio que comeca sem o toque da pessoa', async () => {
+      const { wrapper } = montar();
+      const pause = comPause(wrapper);
+      await wrapper.find('audio').trigger('play');
+      expect(pause).toHaveBeenCalledTimes(1);
+    });
+
+    it('deixa tocar depois do toque da pessoa no player', async () => {
+      const { wrapper } = montar();
+      const pause = comPause(wrapper);
+      await wrapper.find('audio').trigger('pointerdown');
+      await wrapper.find('audio').trigger('play');
+      expect(pause).not.toHaveBeenCalled();
+    });
+
+    it('para os outros audios quando um comeca', async () => {
+      const primeiro = montar().wrapper;
+      const segundo = montar().wrapper;
+      const pausePrimeiro = comPause(primeiro);
+      await segundo.find('audio').trigger('pointerdown');
+      await segundo.find('audio').trigger('play');
+      expect(pausePrimeiro).toHaveBeenCalledTimes(1);
+      primeiro.unmount();
+      segundo.unmount();
+    });
+  });
 });

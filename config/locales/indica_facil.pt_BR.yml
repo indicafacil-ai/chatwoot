@@ -204,6 +204,8 @@ pt_BR:
       avg_customer_waiting_time: Tempo médio de espera do cliente
       resolution_count: Contagem de Resolução
   super_admin:
+    navigation:
+      console: Console de administração
     instance_status:
       whatsapp_connector:
         label: 'Conector do WhatsApp (nativo)'
