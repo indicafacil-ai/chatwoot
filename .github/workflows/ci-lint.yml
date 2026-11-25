@@ -103,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "--- bundle-audit ---"
-          grep -E '^\s+- ' .bundler-audit.yml
+          grep -E '^\s+- ' .bundler-audit.yml || echo '(nenhum aviso ignorado)'
           echo "--- brakeman: $(jq '.ignored_warnings|length' config/brakeman.ignore) achados, cada um com o motivo escrito ---"
           jq -r '.ignored_warnings[] | select(.note | startswith("REAL")) | "AINDA ABERTO (real): \(.warning_type) em \(.file):\(.line)"' config/brakeman.ignore
 
