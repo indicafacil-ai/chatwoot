@@ -222,6 +222,19 @@ describe('ActionCableConnector - Copilot Tests', () => {
     });
   });
 
+  describe('feature_access.changed', () => {
+    it('asks the dashboard to read the member features again', () => {
+      actionCable.onReceived({
+        event: 'feature_access.changed',
+        data: { account_id: 1 },
+      });
+
+      expect(emitter.emit).toHaveBeenCalledWith(
+        BUS_EVENTS.FEATURE_ACCESS_CHANGED
+      );
+    });
+  });
+
   describe('monitor.updated', () => {
     it('forwards updates for the active account', () => {
       const data = { account_id: 1, monitor_id: 2, data_revision: 3 };
@@ -243,6 +256,30 @@ describe('ActionCableConnector - Copilot Tests', () => {
       expect(emitter.emit).not.toHaveBeenCalledWith(
         BUS_EVENTS.MONITOR_UPDATED,
         expect.anything()
+      );
+    });
+  });
+
+  describe('presence.update', () => {
+    it('updates the work preferences of the current user', () => {
+      const workPreferences = {
+        accepts_conversations: true,
+        accepts_calls: false,
+      };
+
+      actionCable.onReceived({
+        event: 'presence.update',
+        data: {
+          account_id: 1,
+          users: { 1: 'online' },
+          contacts: {},
+          work_preferences: workPreferences,
+        },
+      });
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'setCurrentUserWorkPreferences',
+        workPreferences
       );
     });
   });

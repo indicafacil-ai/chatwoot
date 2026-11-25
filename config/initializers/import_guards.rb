@@ -6,8 +6,12 @@
 # generation of the class `to_prepare` hands over, which Ruby ignores when the module is
 # already in the chain.
 #
-# Prepended rather than edited into the classes themselves: all three are files the
+# Prepended rather than edited into the classes themselves: all of them are files the
 # upstream sync rewrites, and a guard clause inside them is a conflict on every merge.
+#
+# Only CE classes and methods are guarded. A callback that Enterprise adds (the audio
+# transcription an Attachment enqueues, for one) is upstream's code and is not patched from
+# here: an archive import on an Enterprise install transcribes its audio like any arrival.
 module ImportGuards
   # A prepended module publishes whatever it defines, and every callback below except
   # `fetch_avatar_from_gravatar` is private on the model it guards. Left alone, a guard
@@ -121,13 +125,21 @@ module ImportGuards
   # from a request carries the operator in `Current.user`, and then every tagged ticket
   # fires. The guard costs an early return on a callback that would not have run; not having
   # it costs an archive of activity lines nobody can take back.
+  #
+  # It guards the four lines CE's create_activity writes, not create_activity itself:
+  # Enterprise refines that one (and prepends its refinement on ActivityMessageHandler), and
+  # a fork module must not stand in front of a method Enterprise defines
+  # (spec/lint/enterprise_isolation_spec.rb). Enterprise's own line, the auto-translate
+  # toggle, only follows a change an import never makes.
   module SilentActivityMessages
     private
 
-    def create_activity
-      return if Import::SilentWrite.on?
+    %i[handle_status_change handle_priority_change handle_label_change handle_sla_policy_change].each do |handler|
+      define_method(handler) do |*args|
+        return if Import::SilentWrite.on?
 
-      super
+        super(*args)
+      end
     end
   end
 
@@ -177,9 +189,9 @@ module ImportGuards
   end
 
   # A Company is created as a side effect of importing a contact with a business address,
-  # and its own after_create_commit fetches a favicon off the domain. Enterprise only, and
-  # reached through two callbacks in different models, so neither the dispatcher guards nor
-  # the two on Contact see it.
+  # and its own after_create_commit fetches a favicon off the domain. Reached through two
+  # callbacks in different models, so neither the dispatcher guards nor the two on Contact
+  # see it.
   #
   # The same shape as Gravatar and the same level: the association is real information
   # about the contact and belongs in the archive, but one outbound request per company at a
@@ -189,25 +201,6 @@ module ImportGuards
     private
 
     def fetch_favicon
-      return if Import::SilentWrite.archive?
-
-      super
-    end
-  end
-
-  # One transcription job per audio attachment, enqueued straight from the Attachment's own
-  # after_create_commit. Enterprise only, and it reaches neither the dispatcher guards nor
-  # the ones on Message: the job is not an event and the attachment is not the message.
-  #
-  # Archive only, and the reason is money rather than noise. Transcription spends Captain
-  # credits per file and rides the low-priority queue, so an archive carrying years of
-  # forwarded voice notes drains the account's balance transcribing conversations that were
-  # closed before the feature existed -- and crowds out the live traffic waiting behind it.
-  # A gap sync recovering one voice note wants it transcribed like any arrival.
-  module SilentTranscription
-    private
-
-    def enqueue_audio_transcription
       return if Import::SilentWrite.archive?
 
       super
@@ -266,8 +259,5 @@ Rails.application.config.to_prepare do
   Conversation.prepend(ImportGuards::SilentAutoAssignment)
   Conversation.prepend(ImportGuards::SilentActivityMessages)
   Contact.prepend(ImportGuards::SilentGravatar)
-  if ChatwootApp.enterprise?
-    Company.prepend(ImportGuards::SilentFavicon)
-    Attachment.prepend(ImportGuards::SilentTranscription)
-  end
+  Company.prepend(ImportGuards::SilentFavicon)
 end

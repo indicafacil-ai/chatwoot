@@ -116,6 +116,22 @@ RSpec.describe 'Conversations API', type: :request do
         expect(seed.pluck(:id) + paginated.pluck(:id)).to include(activity.id)
       end
 
+      it 'lists a conversation whose contact no longer exists with an empty sender' do
+        with_contact = create(:conversation, account: account, inbox: conversation.inbox)
+        Contact.where(id: conversation.contact_id).delete_all
+
+        get "/api/v1/accounts/#{account.id}/conversations",
+            headers: agent.create_new_auth_token,
+            params: { assignee_type: 'all' },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        payload = JSON.parse(response.body, symbolize_names: true)[:data][:payload].index_by { |item| item[:id] }
+        expect(payload.keys).to contain_exactly(conversation.display_id, with_contact.display_id)
+        expect(payload[conversation.display_id][:meta][:sender]).to eq({})
+        expect(payload[with_contact.display_id][:meta][:sender][:id]).to eq(with_contact.contact_id)
+      end
+
       it 'returns conversations with empty messages array for conversations with out messages' do
         get "/api/v1/accounts/#{account.id}/conversations",
             headers: agent.create_new_auth_token,
@@ -680,6 +696,36 @@ RSpec.describe 'Conversations API', type: :request do
                as: :json
         end
 
+        it 'does not trust client supplied hmac_verified param when creating the contact inbox' do
+          allow(Rails.configuration.dispatcher).to receive(:dispatch)
+          identified_contact = create(:contact, account: account, identifier: 'contact-identifier')
+
+          post "/api/v1/accounts/#{account.id}/conversations",
+               headers: agent.create_new_auth_token,
+               params: { contact_id: identified_contact.id, inbox_id: inbox.id, hmac_verified: true },
+               as: :json
+
+          expect(response).to have_http_status(:success)
+          conversation = account.conversations.find_by(display_id: JSON.parse(response.body, symbolize_names: true)[:id])
+          expect(conversation.contact_inbox.hmac_verified).to be(false)
+        end
+
+        it 'marks the contact inbox hmac verified with a valid identifier hash' do
+          allow(Rails.configuration.dispatcher).to receive(:dispatch)
+          identified_contact = create(:contact, account: account, identifier: 'contact-identifier')
+          identifier_hash = OpenSSL::HMAC.hexdigest('sha256', inbox.channel.hmac_token, identified_contact.identifier)
+
+          post "/api/v1/accounts/#{account.id}/conversations",
+               headers: agent.create_new_auth_token,
+               params: { contact_id: identified_contact.id, inbox_id: inbox.id, identifier: identified_contact.identifier,
+                         identifier_hash: identifier_hash },
+               as: :json
+
+          expect(response).to have_http_status(:success)
+          conversation = account.conversations.find_by(display_id: JSON.parse(response.body, symbolize_names: true)[:id])
+          expect(conversation.contact_inbox.hmac_verified).to be(true)
+        end
+
         it 'creates a new conversation with assignee and team' do
           allow(Rails.configuration.dispatcher).to receive(:dispatch)
           post "/api/v1/accounts/#{account.id}/conversations",
@@ -870,6 +916,24 @@ RSpec.describe 'Conversations API', type: :request do
         # The status change and the self-assignment are separate saves; a refused
         # request must not leave the conversation reopened behind the 409.
         expect(conversation.reload.status).to eq('resolved')
+      end
+
+      # Opening a bot conversation self-assigns the agent, which is a claim.
+      it 'answers 409 when opening a bot conversation while the inbox is closed' do
+        conversation.update!(status: 'pending', assignee: nil)
+        conversation.inbox.update!(working_hours_enabled: true, restrict_assignment_to_working_hours: true)
+
+        travel_to(Time.utc(2026, 11, 8, 12)) do
+          post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_status",
+               headers: agent.create_new_auth_token,
+               params: { status: 'open' },
+               as: :json
+        end
+
+        expect(response).to have_http_status(:conflict)
+        expect(response.parsed_body['reason']).to eq('outside_working_hours')
+        expect(conversation.reload.assignee).to be_nil
+        expect(conversation.status).to eq('pending')
       end
 
       # Regression: reopening self-assigns the agent, and that used to be a
@@ -2381,6 +2445,42 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:ok)
       end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/conversations/:id/fetch_history_media' do
+    let(:channel) { create(:channel_whatsapp, account: account, provider: 'native', validate_provider_config: false, sync_templates: false) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+    let(:url) { "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/fetch_history_media" }
+    let(:agent) { create(:user, account: account, role: :agent) }
+
+    it 'queues the files of the conversation for whoever reads it' do
+      create(:inbox_member, user: agent, inbox: channel.inbox)
+
+      expect do
+        post url, headers: agent.create_new_auth_token, as: :json
+      end.to have_enqueued_job(Whatsapp::Session::ConversationHistoryMediaJob).with(conversation)
+
+      expect(response).to have_http_status(:accepted)
+    end
+
+    it 'refuses an agent who cannot see the inbox' do
+      expect do
+        post url, headers: agent.create_new_auth_token, as: :json
+      end.not_to have_enqueued_job(Whatsapp::Session::ConversationHistoryMediaJob)
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'refuses an inbox the session layer does not serve' do
+      cloud = create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', validate_provider_config: false, sync_templates: false)
+      create(:inbox_member, user: agent, inbox: cloud.inbox)
+      other = create(:conversation, account: account, inbox: cloud.inbox)
+
+      post "/api/v1/accounts/#{account.id}/conversations/#{other.display_id}/fetch_history_media",
+           headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
     end
   end
 end

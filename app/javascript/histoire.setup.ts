@@ -33,6 +33,7 @@ const i18n = createI18n({
   locale: 'en',
   // The component workshop has no installation to read from, so the sentinel
   // falls back to the upstream name instead of showing itself.
+  fallbackLocale: 'en',
   messages: mergeMessages(
     applyBrand(structuredClone(dashboardI18n)),
     structuredClone(widgetI18n)

@@ -23,7 +23,11 @@
       "TITLE": "Conversation already assigned",
       "DESCRIPTION": "{agentName} is already handling this conversation. Ask them to release it, or ask an administrator to reassign it.",
       "DESCRIPTION_UNKNOWN_AGENT": "Another agent is already handling this conversation. Ask them to release it, or ask an administrator to reassign it.",
-      "CONFIRM": "Got it"
+      "CONFIRM": "Got it",
+      "OUTSIDE_WORKING_HOURS": {
+        "TITLE": "Inbox outside business hours",
+        "DESCRIPTION": "Conversations in this inbox can only be assigned during its business hours. Try again once it opens, or ask an administrator."
+      }
     },
     "CHANGE_TEAM_FAILED": "Team change failed",
     "MESSAGE_DELETED_BY_CONTACT": "Deleted by the contact",
@@ -107,10 +111,32 @@
         }
       }
     },
-    "HEADER": {
-      "WHATSAPP_CALL_GROUP_UNSUPPORTED": "WhatsApp calls cannot be placed to a group"
+    "WHATSAPP_NUMBER_MISSING_BANNER": "This number had no WhatsApp when checked on {date}. Messages sent to it are not delivered.",
+    "HISTORY_MEDIA": {
+      "PENDING": "This file from the imported history has not been downloaded yet.",
+      "DOWNLOAD": "Download file",
+      "REQUESTED": "Download requested. The file will show up here when it arrives.",
+      "ERROR": "Could not request the download. Try again.",
+      "UNAVAILABLE": "This file is no longer available on WhatsApp.",
+      "DOWNLOAD_ALL": "Download history files",
+      "DOWNLOAD_ALL_REQUESTED": "Downloading the history files of this conversation. They will show up as they arrive.",
+      "DOWNLOAD_ALL_ERROR": "Could not request the history files. Try again."
     },
-    "WHATSAPP_NUMBER_MISSING_BANNER": "This number had no WhatsApp when checked on {date}. Messages sent to it are not delivered."
+    "CATALOG": {
+      "PRODUCT_LABEL": "Catalog product",
+      "PRODUCT_UNREADABLE": "Message with a catalog product. See it on WhatsApp.",
+      "VIEW": "View",
+      "ORDER_LABEL": "Order",
+      "ITEM_COUNT": "{count} item | {count} items",
+      "ESTIMATED_TOTAL": "{total} (estimated total)",
+      "VIEW_ORDER": "View order",
+      "HIDE_ORDER": "Hide items",
+      "QUANTITY": "Quantity: {quantity}",
+      "QUANTITY_PRICE": "Quantity: {quantity} · {price}"
+    },
+    "RICH": {
+      "VIEW_OPTIONS": "View options"
+    }
   },
   "CONVERSATION_SIDEBAR": {
     "ACCORDION": {

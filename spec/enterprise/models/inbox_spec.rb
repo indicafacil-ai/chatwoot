@@ -28,7 +28,7 @@ RSpec.describe Inbox do
 
     it 'returns member ids with assignment capacity with inbox max_assignment_limit is configured' do
       # agent 1 has 1 conversations, agent 2 has 2 conversations, agent 3 has 3 conversations and agent 4 with none
-      inbox.update!(auto_assignment_config: { max_assignment_limit: 2 })
+      inbox.update(auto_assignment_config: { max_assignment_limit: 2 })
       expect(inbox.member_ids_with_assignment_capacity).to contain_exactly(inbox_member_1.user_id, inbox_member_4.user_id)
     end
 
@@ -81,7 +81,7 @@ RSpec.describe Inbox do
       end
 
       it 'skips V1 max_assignment_limit when V2 is enabled' do
-        v2_inbox.update!(auto_assignment_config: { max_assignment_limit: 100 })
+        v2_inbox.update(auto_assignment_config: { max_assignment_limit: 100 })
 
         create(:conversation, inbox: v2_inbox, account: account, assignee: agent1, status: :open)
 
@@ -271,7 +271,7 @@ RSpec.describe Inbox do
 
     context 'when inbox is updated' do
       it 'has associated audit log created' do
-        inbox.update!(name: 'Updated Inbox')
+        inbox.update(name: 'Updated Inbox')
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(1)
       end
     end
@@ -280,7 +280,7 @@ RSpec.describe Inbox do
       it 'has associated audit log created' do
         previous_color = inbox.channel.widget_color
         new_color = '#ff0000'
-        inbox.channel.update!(widget_color: new_color)
+        inbox.channel.update(widget_color: new_color)
 
         # check if channel update creates an audit log against inbox
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(1)
@@ -292,7 +292,7 @@ RSpec.describe Inbox do
 
     context 'when channel hmac token is updated along with other attributes' do
       it 'does not include hmac token in the audit log' do
-        inbox.channel.update!(hmac_token: 'new-hmac-token', widget_color: '#00ff00')
+        inbox.channel.update(hmac_token: 'new-hmac-token', widget_color: '#00ff00')
 
         audit = Audited::Audit.where(auditable_type: 'Inbox', action: 'update').last
         expect(audit.audited_changes).to have_key('widget_color')
@@ -313,7 +313,7 @@ RSpec.describe Inbox do
 
     context 'when inbox is updated' do
       it 'has associated audit log created' do
-        inbox.update!(name: 'Updated Inbox')
+        inbox.update(name: 'Updated Inbox')
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(1)
       end
     end
@@ -322,7 +322,7 @@ RSpec.describe Inbox do
       it 'has associated audit log created' do
         previous_webhook = inbox.channel.webhook_url
         new_webhook = 'https://example2.com'
-        inbox.channel.update!(webhook_url: new_webhook)
+        inbox.channel.update(webhook_url: new_webhook)
 
         # check if channel update creates an audit log against inbox
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(1)
@@ -365,7 +365,7 @@ RSpec.describe Inbox do
 
     context 'when inbox is updated' do
       it 'has associated audit log created' do
-        inbox.update!(name: 'Updated Inbox')
+        inbox.update(name: 'Updated Inbox')
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(1)
       end
     end
@@ -374,7 +374,7 @@ RSpec.describe Inbox do
       it 'has associated audit log created' do
         previous_phone_number = inbox.channel.phone_number
         new_phone_number = '1234567890'
-        inbox.channel.update!(phone_number: new_phone_number)
+        inbox.channel.update(phone_number: new_phone_number)
 
         # check if channel update creates an audit log against inbox
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(1)
@@ -394,7 +394,7 @@ RSpec.describe Inbox do
 
     context 'when a provider config call setting is toggled' do
       it 'audits only the allow-listed settings' do
-        channel.update!(provider_config: channel.provider_config.merge('recording_enabled' => false))
+        channel.update(provider_config: channel.provider_config.merge('recording_enabled' => false))
 
         audit = Audited::Audit.where(auditable_type: 'Inbox', action: 'update').last
         expect(audit.audited_changes['provider_config']).to eq([{}, { 'recording_enabled' => false }])
@@ -403,7 +403,7 @@ RSpec.describe Inbox do
 
     context 'when only provider config credentials change' do
       it 'has no associated audit log created' do
-        channel.update!(provider_config: channel.provider_config.merge('api_key' => 'rotated_key'))
+        channel.update(provider_config: channel.provider_config.merge('api_key' => 'rotated_key'))
 
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(0)
       end
@@ -411,7 +411,7 @@ RSpec.describe Inbox do
 
     context 'when provider config credentials and a call setting change together' do
       it 'audits only the call setting' do
-        channel.update!(provider_config: channel.provider_config.merge('api_key' => 'rotated_key', 'calling_enabled' => true))
+        channel.update(provider_config: channel.provider_config.merge('api_key' => 'rotated_key', 'calling_enabled' => true))
 
         audit = Audited::Audit.where(auditable_type: 'Inbox', action: 'update').last
         expect(audit.audited_changes['provider_config']).to eq([{}, { 'calling_enabled' => true }])
@@ -420,7 +420,7 @@ RSpec.describe Inbox do
 
     context 'when an allow-listed provider config key holds a non boolean value' do
       it 'has no associated audit log created' do
-        channel.update!(provider_config: channel.provider_config.merge('recording_enabled' => { 'x' => 'secret' }))
+        channel.update(provider_config: channel.provider_config.merge('recording_enabled' => { 'x' => 'secret' }))
 
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(0)
       end
@@ -429,7 +429,7 @@ RSpec.describe Inbox do
     context 'when provider config is set for the first time' do
       it 'audits the call settings present after the change' do
         channel.update_column(:provider_config, nil) # rubocop:disable Rails/SkipsModelValidations
-        channel.update!(provider_config: { 'calling_enabled' => true, 'api_key' => 'test_key' })
+        channel.update(provider_config: { 'calling_enabled' => true, 'api_key' => 'test_key' })
 
         audit = Audited::Audit.where(auditable_type: 'Inbox', action: 'update').last
         expect(audit.audited_changes['provider_config']).to eq([{}, { 'calling_enabled' => true }])
@@ -442,7 +442,7 @@ RSpec.describe Inbox do
 
     context 'when channel provider config is updated' do
       it 'does not include provider config in the audit log' do
-        channel.update!(imap_address: 'imap.updated.com', provider_config: { access_token: 'super-secret-token' })
+        channel.update(imap_address: 'imap.updated.com', provider_config: { access_token: 'super-secret-token' })
 
         audit = Audited::Audit.where(auditable_type: 'Inbox', action: 'update').last
         expect(audit.audited_changes).to have_key('imap_address')
@@ -452,7 +452,7 @@ RSpec.describe Inbox do
 
     context 'when channel passwords are updated' do
       it 'does not include credential attributes in the audit log' do
-        channel.update!(imap_login: 'updated@example.com', imap_password: 'new-imap-password', smtp_password: 'new-smtp-password')
+        channel.update(imap_login: 'updated@example.com', imap_password: 'new-imap-password', smtp_password: 'new-smtp-password')
 
         audit = Audited::Audit.where(auditable_type: 'Inbox', action: 'update').last
         expect(audit.audited_changes).to have_key('imap_login')
@@ -466,10 +466,52 @@ RSpec.describe Inbox do
 
     context 'when channel bot token is updated' do
       it 'does not include credential attributes in the audit log' do
-        channel.update!(bot_token: 'updated-bot-token')
+        channel.update(bot_token: 'updated-bot-token')
 
         expect(Audited::Audit.where(auditable_type: 'Inbox', action: 'update').count).to eq(0)
       end
+    end
+  end
+
+  describe '#closed_for_calls?' do
+    let(:account) { create(:account) }
+    let(:twilio_inbox) do
+      allow(Twilio::VoiceWebhookSetupService).to receive(:new)
+        .and_return(instance_double(Twilio::VoiceWebhookSetupService, perform: "AP#{SecureRandom.hex(8)}"))
+      create(:channel_twilio_sms, :with_voice, account: account).inbox
+    end
+    let(:whatsapp_inbox) { create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox }
+
+    def configure(calls_inbox, business_hours_calls:, working_hours:, open_now:)
+      calls_inbox.channel.provider_config = calls_inbox.channel.provider_config.merge('business_hours_calls_enabled' => business_hours_calls)
+      calls_inbox.channel.save!(validate: false)
+      calls_inbox.update!(working_hours_enabled: working_hours)
+      calls_inbox.working_hours.each { |hours| hours.update!(closed_all_day: !open_now, open_all_day: open_now) }
+    end
+
+    it 'is closed for calls only outside the hours of an inbox that applies them to calls, on both providers' do
+      [twilio_inbox, whatsapp_inbox].each do |calls_inbox|
+        configure(calls_inbox, business_hours_calls: true, working_hours: true, open_now: false)
+        expect(calls_inbox.reload.closed_for_calls?).to be true
+
+        configure(calls_inbox, business_hours_calls: true, working_hours: true, open_now: true)
+        expect(calls_inbox.reload.closed_for_calls?).to be false
+
+        configure(calls_inbox, business_hours_calls: false, working_hours: true, open_now: false)
+        expect(calls_inbox.reload.closed_for_calls?).to be false
+      end
+    end
+
+    it 'rings as usual when the inbox has business hours turned off, even if calls follow them' do
+      [twilio_inbox, whatsapp_inbox].each do |calls_inbox|
+        configure(calls_inbox, business_hours_calls: true, working_hours: false, open_now: false)
+        expect(calls_inbox.reload.closed_for_calls?).to be false
+      end
+    end
+
+    it 'holds off auto-assignment for the calls of Twilio and WhatsApp inboxes only' do
+      expect([twilio_inbox, whatsapp_inbox].map(&:rings_for_calls?)).to eq([true, true])
+      expect(inbox.rings_for_calls?).to be false
     end
   end
 end

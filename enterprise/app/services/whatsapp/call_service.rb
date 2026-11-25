@@ -1,9 +1,8 @@
 class Whatsapp::CallService
-  pattr_initialize [:call!, :agent!, :sdp_answer]
+  pattr_initialize [:call!, :agent!, :sdp_answer, :agent_client]
 
   def accept
-    # A string, the SDP itself: anything else would be taken as an answer and fail later.
-    raise Voice::CallErrors::CallFailed, 'sdp_answer is required' unless sdp_answer.is_a?(String) && sdp_answer.present?
+    raise Voice::CallErrors::CallFailed, 'sdp_answer is required' if sdp_answer.blank?
 
     # All side effects under the lock so a concurrent terminate cannot finalize
     # the call between status update and the message/conversation/broadcast writes.
@@ -31,9 +30,6 @@ class Whatsapp::CallService
     call.with_lock do
       next if call.terminal?
 
-      apply_kept_connector_outcomes
-      next if call.terminal?
-
       invoke_provider!(:terminate_call)
       # Compute duration from started_at locally — the webhook arrives after the
       # call is already terminal and the idempotency guard there bails before it
@@ -51,15 +47,6 @@ class Whatsapp::CallService
 
   private
 
-  # The connector can report a pickup, or an end, before the call it is about was
-  # recorded, and the call stays ringing here until they are applied: an agent hanging up
-  # before then would end as unanswered a call that was answered, or one that had ended.
-  def apply_kept_connector_outcomes
-    return unless call.inbox.channel.session_provider?
-
-    Whatsapp::ConnectorCallService.new(inbox: call.inbox).apply_kept_outcomes(call)
-  end
-
   def transition_to_in_progress!
     # in_progress and terminal both make ringing? false; branch in order to surface the
     # distinct AlreadyAccepted / CallAlreadyEnded states (caller can hang up mid-ring).
@@ -69,7 +56,7 @@ class Whatsapp::CallService
 
     forward_answer_to_meta!
     call.update!(status: 'in_progress', accepted_by_agent_id: agent.id, started_at: Time.current,
-                 meta: (call.meta || {}).merge('sdp_answer' => sdp_answer))
+                 meta: (call.meta || {}).merge({ 'sdp_answer' => sdp_answer, 'agent_client' => agent_client }.compact))
   end
 
   def forward_answer_to_meta!

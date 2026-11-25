@@ -74,6 +74,7 @@ RSpec.describe SamlUserBuilder do
     end
 
     context 'when user already exists' do
+      let!(:saml_settings) { create(:account_saml_settings, account: account) }
       let!(:existing_user) { create(:user, email: email, account: account) }
 
       it 'does not create a new user' do
@@ -134,6 +135,45 @@ RSpec.describe SamlUserBuilder do
           rescue StandardError => e
             raise unless e.class.name == 'SamlUserBuilder::AuthenticationFailed' # rubocop:disable Style/ClassEqualityComparison
           end.not_to(change { existing_user.reload.provider })
+        end
+      end
+
+      context 'when the user also belongs to another account' do
+        let(:other_account) { create(:account) }
+
+        before do
+          other_account.enable_features!('saml')
+          existing_user.account_users.create!(account: other_account, role: :agent)
+        end
+
+        it 'signs in the user when the other account trusts the same identity provider' do
+          create(:account_saml_settings, account: other_account, certificate: saml_settings.certificate)
+
+          expect(builder.perform).to eq(existing_user)
+        end
+
+        it 'raises an authentication failure when the other account does not use SAML' do
+          expect { builder.perform }.to raise_error(SamlUserBuilder::AuthenticationFailed)
+        end
+
+        it 'raises an authentication failure when the other account trusts a different certificate' do
+          create(:account_saml_settings, account: other_account)
+
+          expect { builder.perform }.to raise_error(SamlUserBuilder::AuthenticationFailed)
+        end
+
+        it 'raises an authentication failure when the other account trusts a different identity provider' do
+          create(:account_saml_settings, account: other_account, certificate: saml_settings.certificate,
+                                         idp_entity_id: 'https://other-idp.example.com/metadata')
+
+          expect { builder.perform }.to raise_error(SamlUserBuilder::AuthenticationFailed)
+        end
+
+        it 'raises an authentication failure when SAML is disabled for the other account' do
+          create(:account_saml_settings, account: other_account, certificate: saml_settings.certificate)
+          other_account.disable_features!('saml')
+
+          expect { builder.perform }.to raise_error(SamlUserBuilder::AuthenticationFailed)
         end
       end
 
@@ -283,32 +323,16 @@ RSpec.describe SamlUserBuilder do
       end
     end
 
-    # `create_user` saves with `User.create!`, so a record Rails refuses raises instead of
-    # coming back unsaved. Reported as a rejected assertion, which is what it is; the
-    # controller answers that with the ordinary login error.
-    context 'when the user cannot be created' do
-      before { allow(User).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(User.new)) }
-
-      it 'reports a failed authentication instead of returning an unsaved user' do
-        expect { builder.perform }.to raise_error(described_class::AuthenticationFailed)
+    context 'when there are errors' do
+      it 'returns unsaved user object when user creation fails' do
+        allow(User).to receive(:create).and_return(User.new(email: email))
+        user = builder.perform
+        expect(user.persisted?).to be false
       end
 
-      it 'does not create an account association' do
-        expect do
-          expect { builder.perform }.to raise_error(described_class::AuthenticationFailed)
-        end.not_to change(AccountUser, :count)
-      end
-    end
-
-    # The mirror of the above, and the reason the rescue sits on `create_user` rather than
-    # around the whole builder: a failure here is ours, not the IdP's, and it happens after
-    # the user has already been committed. Answering it with a login error would hide a
-    # broken role mapping or a failing callback behind "authentication failed".
-    context 'when adding the user to the account fails' do
-      it 'lets the failure through instead of reporting a failed authentication' do
-        allow(AccountUser).to receive(:find_or_create_by!).and_raise(ActiveRecord::RecordInvalid.new(AccountUser.new))
-
-        expect { builder.perform }.to raise_error(ActiveRecord::RecordInvalid)
+      it 'does not create account association for failed user' do
+        allow(User).to receive(:create).and_return(User.new(email: email))
+        expect { builder.perform }.not_to change(AccountUser, :count)
       end
     end
   end

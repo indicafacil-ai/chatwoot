@@ -1,5 +1,5 @@
 class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseController
-  before_action :set_call, only: %i[show accept reject terminate upload_recording]
+  before_action :set_call, only: %i[show accept reject dismiss terminate upload_recording]
   before_action :set_call_context, only: :initiate
   before_action :ensure_calling_enabled, only: :initiate
   before_action :ensure_sdp_offer, only: :initiate
@@ -11,9 +11,6 @@ class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseContro
   rescue_from Voice::CallErrors::NotRinging,
               Voice::CallErrors::CallFailed,
               with: :render_call_error
-  # A paired phone dials through the connector, which refuses a call the way Meta's API
-  # does, only in its own terms: a number not on WhatsApp, a session that is not connected.
-  rescue_from Whatsapp::Session::Errors::Error, with: :render_call_error
   rescue_from Voice::CallErrors::AlreadyAccepted, with: :render_call_already_accepted
   rescue_from Voice::CallErrors::CallAlreadyEnded, with: :render_call_ended
 
@@ -25,6 +22,11 @@ class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseContro
 
   def reject
     call_service.reject
+  end
+
+  def dismiss
+    Voice::RingDismissService.new(call: @call, user: Current.user).perform
+    head :ok
   end
 
   def terminate
@@ -45,21 +47,16 @@ class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseContro
       @message = Voice::CallMessageBuilder.new(@call).perform!
       @call.update!(message_id: @message.id)
     end
-    # The connector can report the pickup, or the end, of a call before this request got to
-    # record it; what it said is applied once this tab knows the call.
-    reconcile_connector_call if @inbox.channel.session_provider?
   rescue Voice::CallErrors::NoCallPermission
     render_permission_request
   end
 
   private
 
-  def reconcile_connector_call
-    Whatsapp::ConnectorCallReconcileJob.set(wait: Whatsapp::ConnectorCallReconcileJob::DELAY).perform_later(@call.id)
-  end
-
   def call_service
-    @call_service ||= Whatsapp::CallService.new(call: @call, agent: Current.user, sdp_answer: params[:sdp_answer])
+    @call_service ||= Whatsapp::CallService.new(
+      call: @call, agent: Current.user, sdp_answer: params[:sdp_answer], agent_client: RequestDeviceInfo.new(request).client_details
+    )
   end
 
   def provider_service
@@ -114,9 +111,7 @@ class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseContro
     render_could_not_create_error(I18n.t('errors.whatsapp.calls.sdp_offer_required'))
   end
 
-  # A group's source id is not a person to dial, and WhatsApp has no group call to place.
   def ensure_call_recipient
-    return render_could_not_create_error(I18n.t('errors.whatsapp.calls.group_not_supported')) if @conversation&.group_type_group?
     return if call_recipient.present?
 
     render_could_not_create_error(I18n.t('errors.whatsapp.calls.contact_phone_required'))
@@ -154,22 +149,13 @@ class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseContro
     # fresh thread (@conversation nil until the dial succeeds) is created already assigned to the caller.
     claim_for_caller = @conversation.present? && @conversation.assigned_entity.nil?
 
-    result = provider_service.initiate_call(call_recipient, params[:sdp_offer], **connector_call_context)
+    result = provider_service.initiate_call(call_recipient, params[:sdp_offer])
     provider_call_id = result.dig('calls', 0, 'id') || result['call_id']
 
     @conversation = open_conversation!
     @conversation.with_lock { @conversation.update!(assignee: Current.user) } if claim_for_caller
 
     create_call_record(provider_call_id)
-  end
-
-  # The connector dials numbers only. The contact panel hands over the contact's number,
-  # which is one; a conversation hands over its bare-digit source id, which the contact
-  # called is what tells apart from a LID's.
-  def connector_call_context
-    return {} unless @inbox.channel.session_provider?
-
-    { contact: @contact, number: params[:conversation_id].blank? }
   end
 
   def call_recipient
@@ -191,7 +177,8 @@ class Api::V1::Accounts::WhatsappCallsController < Api::V1::Accounts::BaseContro
       provider: :whatsapp, inbox: @conversation.inbox, conversation: @conversation, contact: @conversation.contact,
       provider_call_id: provider_call_id, direction: :outgoing, status: 'ringing',
       accepted_by_agent_id: Current.user.id,
-      meta: { 'sdp_offer' => params[:sdp_offer], 'ice_servers' => Call.default_ice_servers }
+      meta: { 'sdp_offer' => params[:sdp_offer], 'ice_servers' => Call.default_ice_servers,
+              'agent_client' => RequestDeviceInfo.new(request).client_details }.compact
     )
   rescue ActiveRecord::RecordNotUnique
     # A webhook inserted the row between the find_by above and this create; reconcile to it.

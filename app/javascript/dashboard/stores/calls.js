@@ -1,13 +1,7 @@
 import TwilioVoiceClient from 'dashboard/api/channel/voice/twilioVoiceClient';
-import {
-  armOutboundRecorder,
-  cleanupWhatsappSession,
-  handleWhatsappRemoteEnd,
-  isLocalWhatsappCall,
-  takeEarlyOutboundEnd,
-  takeEarlyOutboundOutcome,
-} from 'dashboard/composables/useWhatsappCallSession';
+import { cleanupWhatsappSession } from 'dashboard/composables/useWhatsappCallSession';
 import { VOICE_CALL_PROVIDERS } from 'dashboard/helper/inbox';
+import { VOICE_CALL_STATUS } from 'dashboard/components-next/message/constants';
 import { TERMINAL_STATUSES } from 'dashboard/helper/voice';
 import { defineStore } from 'pinia';
 
@@ -22,6 +16,9 @@ const teardownByProvider = call => {
 export const useCallsStore = defineStore('calls', {
   state: () => ({
     calls: [],
+    // Statuses that arrived before their call was added, e.g. an outbound call
+    // answered before its created event; addCall applies them
+    pendingStatuses: {},
   }),
 
   getters: {
@@ -33,9 +30,21 @@ export const useCallsStore = defineStore('calls', {
 
   actions: {
     handleCallStatusChanged({ callSid, status }) {
-      if (!TERMINAL_STATUSES.includes(status)) return;
-
       const call = this.calls.find(c => c.callSid === callSid);
+      if (!TERMINAL_STATUSES.includes(status)) {
+        // A connected call never rings again, so a late ringing update is stale
+        const current = call ? call.status : this.pendingStatuses[callSid];
+        if (
+          status === VOICE_CALL_STATUS.RINGING &&
+          current === VOICE_CALL_STATUS.IN_PROGRESS
+        )
+          return;
+        if (call) call.status = status;
+        else this.pendingStatuses[callSid] = status;
+        return;
+      }
+      delete this.pendingStatuses[callSid];
+
       // WhatsApp recordings live in the in-memory recorder until voice_call.ended
       // uploads them; tearing down here would race-wipe those chunks.
       if (call?.provider === 'whatsapp') {
@@ -58,42 +67,18 @@ export const useCallsStore = defineStore('calls', {
         const next = { ...callData };
         if (existing.caller && !next.caller) delete next.caller;
         Object.assign(existing, next, { isActive: existing.isActive });
-        // The message can add this tab's placed call before the tab does; an outcome kept
-        // for it is applied when the tab adds it all the same.
-        this.applyEarlyOutcome(callData);
         return;
       }
 
+      const status = this.pendingStatuses[callData.callSid];
+      delete this.pendingStatuses[callData.callSid];
       // Prepend so the newest call surfaces as the primary card (incomingCalls[0])
       // and older calls drop into the stack below it.
       this.calls.unshift({
         ...callData,
+        ...(status && { status }),
         isActive: false,
       });
-      this.applyEarlyOutcome(callData);
-    },
-
-    // A call this tab placed that was picked up, or ended, before the tab had it. Only this
-    // tab's own call: a sibling tab's, arriving here as a message, is not this tab's to
-    // start or to release.
-    //
-    // An end is applied to a call the tab no longer owns too: the end that tore down the
-    // session placing it can arrive before the dial's answer adds the call.
-    applyEarlyOutcome(callData) {
-      if (callData.provider !== VOICE_CALL_PROVIDERS.WHATSAPP) return;
-      const local = isLocalWhatsappCall(callData.callId);
-      const early = local
-        ? takeEarlyOutboundOutcome(callData.callId)
-        : takeEarlyOutboundEnd(callData.callId);
-      if (early === 'ended') {
-        this.calls = this.calls.filter(c => c.callSid !== callData.callSid);
-        // Through the call's own end, which uploads its recording first, and waits for an
-        // end of the same call already doing so.
-        if (local) handleWhatsappRemoteEnd(callData.callId);
-      } else if (early === 'accepted') {
-        this.setCallActive(callData.callSid);
-        armOutboundRecorder();
-      }
     },
 
     removeCall(callSid) {
@@ -108,7 +93,14 @@ export const useCallsStore = defineStore('calls', {
       this.calls = this.calls.map(call => ({
         ...call,
         isActive: call.callSid === callSid,
+        onHold: false,
       }));
+    },
+
+    // Flipped only after Twilio confirmed the hold, so the card never shows a hold that failed
+    setCallOnHold(callSid, onHold) {
+      const call = this.calls.find(c => c.callSid === callSid);
+      if (call) call.onHold = onHold;
     },
 
     clearActiveCall() {

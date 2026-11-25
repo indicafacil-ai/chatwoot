@@ -9,7 +9,6 @@ import { useCallsStore } from 'dashboard/stores/calls';
 import {
   applyOutboundAnswer,
   armOutboundRecorder,
-  noteEarlyOutboundOutcome,
   handleWhatsappRemoteEnd,
   isLocalWhatsappCall,
 } from 'dashboard/composables/useWhatsappCallSession';
@@ -86,6 +85,7 @@ class ActionCableConnector extends BaseActionCableConnector {
         this.onInboxProviderConnectionUpdated,
       'account.enrichment_completed': this.onEnrichmentCompleted,
       'account.billing_updated': this.onBillingUpdated,
+      'feature_access.changed': this.onFeatureAccessChanged,
       'copilot.message.created': this.onCopilotMessageCreated,
       'scheduled_message.created': this.onScheduledMessageCreated,
       'scheduled_message.updated': this.onScheduledMessageUpdated,
@@ -144,6 +144,10 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('contacts/updatePresence', data.contacts);
     this.app.$store.dispatch('agents/updatePresence', data.users);
     this.app.$store.dispatch('setCurrentUserAvailability', data.users);
+    this.app.$store.dispatch(
+      'setCurrentUserWorkPreferences',
+      data.work_preferences
+    );
   };
 
   onConversationContactChange = payload => {
@@ -560,6 +564,13 @@ class ActionCableConnector extends BaseActionCableConnector {
     });
   };
 
+  // The features this member may use changed (an access profile was edited or assigned):
+  // ReconnectService reads the user again and leaves what is no longer reachable.
+  // eslint-disable-next-line class-methods-use-this
+  onFeatureAccessChanged = () => {
+    emitter.emit(BUS_EVENTS.FEATURE_ACCESS_CHANGED);
+  };
+
   onCacheInvalidate = data => {
     const keys = data.cache_keys;
     this.app.$store.dispatch('labels/revalidate', { newKey: keys.label });
@@ -694,11 +705,11 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onVoiceCallIncoming = data => {
     if (data?.provider !== VOICE_CALL_PROVIDERS.WHATSAPP) return;
-    // Defense in depth: the server already filters to online agent streams,
-    // but if anything ever broadcasts to a broader stream (e.g. account-wide),
-    // an agent who's set availability=offline/busy shouldn't ring.
-    const availability = this.app.$store.getters.getCurrentUserAvailability;
-    if (availability !== 'online') return;
+    // Defense in depth: the server already filters to online agent streams that
+    // take calls, but if anything ever broadcasts to a broader stream (e.g.
+    // account-wide), an agent who is not online or has turned calls off
+    // shouldn't ring.
+    if (!this.app.$store.getters.getCurrentUserReceivesCalls) return;
 
     useCallsStore().addCall({
       callSid: data.call_id,
@@ -760,11 +771,7 @@ class ActionCableConnector extends BaseActionCableConnector {
   onVoiceCallOutboundAccepted = data => {
     if (data?.provider !== VOICE_CALL_PROVIDERS.WHATSAPP) return;
     const store = useCallsStore();
-    if (!store.calls.some(c => c.callSid === data.call_id)) {
-      // Picked up before this tab added the call it placed; applied when it does.
-      noteEarlyOutboundOutcome(data.id, 'accepted');
-      return;
-    }
+    if (!store.calls.some(c => c.callSid === data.call_id)) return;
     store.setCallActive(data.call_id);
     armOutboundRecorder();
   };
@@ -775,11 +782,6 @@ class ActionCableConnector extends BaseActionCableConnector {
     // A still-queued ringing message.created (see onVoiceCallAccepted) must not
     // resurrect a call that has already ended.
     markCallDismissed(data.call_id);
-    if (data.provider === VOICE_CALL_PROVIDERS.WHATSAPP) {
-      // Ended before this tab knew the call it placed, whether or not a message added it
-      // already: kept until the tab adds it, so it is not added back as ringing then.
-      noteEarlyOutboundOutcome(data.id, 'ended');
-    }
     // The store entry should always be removed for this account-wide broadcast,
     // but the WebRTC/recorder teardown must only run for the call this tab owns
     // — otherwise an unrelated agent's call ending would stop this tab's

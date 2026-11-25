@@ -53,8 +53,8 @@ class Whatsapp::Session::Outbound::AttachmentAdapter
     file = attachment.file
     content::Media.new(
       kind: kind, mime: file.content_type, filename: file.filename.to_s, caption: caption.presence,
-      voice_note: voice_note?, size: file.byte_size, ref: media_ref.url(url, mime: file.content_type,
-                                                                             size: file.byte_size),
+      voice_note: voice_note?, video_note: video_note, size: file.byte_size,
+      ref: media_ref.url(url, mime: file.content_type, size: file.byte_size),
       **measurements
     )
   end
@@ -132,7 +132,12 @@ class Whatsapp::Session::Outbound::AttachmentAdapter
     KINDS.fetch(attachment.file_type, 'document')
   end
 
-  # `is_recorded_audio` is the older upstream key (transcode pipeline and old messages).
+  # Absent rather than false when it does not apply: the contract omits the flag unless it is true.
+  def video_note
+    true if attachment.video_note?
+  end
+
+  # `is_recorded_audio` is the older key (transcode pipeline and old messages).
   def voice_note?
     meta = attachment.meta || {}
     meta['is_voice_message'].present? || meta['is_recorded_audio'].present?

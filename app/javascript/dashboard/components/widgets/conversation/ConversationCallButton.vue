@@ -16,6 +16,7 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAlert } from 'dashboard/composables';
+import { ExceptionWithMessage } from 'shared/helpers/CustomErrors';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
@@ -42,15 +43,12 @@ const isVoiceCallInbox = computed(
     voiceCallProvider.value !== null &&
     isCloudFeatureEnabled(FEATURE_FLAGS.CHANNEL_VOICE)
 );
-// A call is placed to a person: WhatsApp has no call a group can be dialled into. The
-// button stays, disabled, so the agent reads why there is no call here.
-const isGroupChat = computed(() => props.chat?.group_type === 'group');
+const isAnonymousCaller = computed(() => !!props.chat.anonymous_caller);
 const isWhatsappVoiceInbox = computed(
   () => voiceCallProvider.value === VOICE_CALL_PROVIDERS.WHATSAPP
 );
 
 const isCallButtonDisabled = computed(() => {
-  if (isGroupChat.value) return true;
   if (callsStore.hasActiveCall || callsStore.hasIncomingCall) return true;
   if (isWhatsappVoiceInbox.value) {
     return whatsappCallSession.isInitiating.value;
@@ -64,14 +62,11 @@ const isCallButtonLoading = computed(() =>
     : !!contactsUiFlags.value?.isInitiatingCall
 );
 
-const callButtonTooltip = computed(() => {
-  if (isGroupChat.value) {
-    return t('CONVERSATION.HEADER.WHATSAPP_CALL_GROUP_UNSUPPORTED');
-  }
-  return isWhatsappVoiceInbox.value
+const callButtonTooltip = computed(() =>
+  isWhatsappVoiceInbox.value
     ? t('CONVERSATION.HEADER.WHATSAPP_CALL')
-    : t('CONVERSATION.HEADER.VOICE_CALL');
-});
+    : t('CONVERSATION.HEADER.VOICE_CALL')
+);
 
 const startWhatsappCall = async () => {
   if (whatsappCallSession.isInitiating.value) return;
@@ -123,9 +118,14 @@ const startTwilioCall = async () => {
       conversationId: response?.conversation_id ?? props.chat.id,
       inboxId: props.inbox?.id,
       callDirection: VOICE_CALL_DIRECTION.OUTBOUND,
+      provider: VOICE_CALL_PROVIDERS.TWILIO,
     });
   } catch (error) {
-    useAlert(error?.message || t('CONVERSATION.HEADER.VOICE_CALL_FAILED'));
+    useAlert(
+      error instanceof ExceptionWithMessage
+        ? error.data
+        : t('CONVERSATION.HEADER.VOICE_CALL_FAILED')
+    );
   }
 };
 
@@ -136,18 +136,16 @@ const startCall = () => {
 </script>
 
 <template>
-  <!-- The tooltip sits on a wrapper: a disabled button gets no hover, and the group case
-  is exactly the one whose tooltip says why it is disabled. -->
-  <span v-if="isVoiceCallInbox" v-tooltip.bottom="callButtonTooltip">
-    <NextButton
-      sm
-      ghost
-      slate
-      icon="i-lucide-phone"
-      :is-loading="isCallButtonLoading"
-      :disabled="isCallButtonDisabled"
-      @click="startCall"
-    />
-  </span>
+  <NextButton
+    v-if="isVoiceCallInbox && !isAnonymousCaller"
+    v-tooltip.bottom="callButtonTooltip"
+    sm
+    ghost
+    slate
+    icon="i-lucide-phone"
+    :is-loading="isCallButtonLoading"
+    :disabled="isCallButtonDisabled"
+    @click="startCall"
+  />
   <template v-else />
 </template>

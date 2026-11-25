@@ -25,6 +25,7 @@ const i18n = createI18n({
   // %BRAND% sentinel has to be resolved here too — otherwise the sign-in heading
   // renders the sentinel itself.
   messages: applyBrand(i18nMessages, window.globalConfig?.INSTALLATION_NAME),
+  fallbackLocale: 'en',
 });
 
 const app = createApp(App);

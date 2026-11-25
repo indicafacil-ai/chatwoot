@@ -1,11 +1,11 @@
 source 'https://rubygems.org'
 
-ruby '3.4.4'
+ruby '3.4.13'
 
 ##-- base gems for rails --##
 
 gem 'rack-cors', '2.0.0', require: 'rack/cors'
-gem 'rails', '8.1.4'
+gem 'rails', '8.1.4.1'
 # Vinha de carona com o Rails 7: a gem `rails` dependia dele. O Rails 8 nao depende mais,
 # e o `config.assets` dos nossos config/environments/*.rb deixa de existir sem ele
 # (NoMethodError no boot). O painel de Super Admin ainda e servido por esse pipeline.
@@ -62,6 +62,8 @@ gem 'azure-blob', require: false
 gem 'google-cloud-storage', '>= 1.48.0', require: false
 gem 'image_processing'
 gem 'streamio-ffmpeg', '~> 3.0'
+# Rails 8.0.5.1+ requires the API that blocks untrusted libvips operations.
+gem 'ruby-vips', '~> 2.2', '>= 2.2.1', require: false
 
 ##-- for actionmailbox --##
 gem 'aws-actionmailbox-ses', '~> 0'
@@ -188,7 +190,7 @@ gem 'geocoder'
 gem 'maxminddb'
 
 # to create db triggers
-gem 'hairtrigger'
+gem 'hairtrigger', '1.3.1'
 
 gem 'procore-sift'
 
@@ -216,7 +218,7 @@ gem 'lograge', '~> 0.14.0', require: false
 # worked with microsoft refresh token
 gem 'omniauth-oauth2'
 
-gem 'audited', '~> 5.4', '>= 5.4.1'
+gem 'audited', '~> 5.8'
 
 # need for google auth
 gem 'omniauth', '>= 2.1.2'
@@ -233,9 +235,9 @@ gem 'reverse_markdown'
 
 gem 'iso-639'
 gem 'ruby-openai'
-gem 'ai-agents', '~> 0.13.0'
+gem 'ai-agents', '~> 0.14.0'
 
-gem 'ruby_llm', '~> 2.0.0'
+gem 'ruby_llm', '~> 2.1.1'
 
 gem 'cld3', '~> 3.7'
 
@@ -307,9 +309,7 @@ group :development, :test do
   # then never exits on SIGTERM (#750).
   gem 'debug', '~> 1.8', require: 'debug/prelude'
   gem 'factory_bot_rails', '>= 6.4.3'
-  gem 'listen'
   gem 'mock_redis'
-  gem 'pry-rails'
   gem 'rspec_junit_formatter'
   gem 'rspec-rails', '>= 6.1.5'
   gem 'rubocop', require: false

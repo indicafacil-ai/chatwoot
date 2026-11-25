@@ -14,11 +14,13 @@ module Whatsapp::Session::Model::Content
   # `width`, `height` and `waveform` are the caller's to fill in: the connector does not
   # decode media, and the side building the send is the one holding the file. Absent is
   # absent all the way to the wire, where a zero would be a measurement of nothing.
-  class Media < Data.define(:kind, :mime, :filename, :caption, :voice_note, :size, :duration,
+  class Media < Data.define(:kind, :mime, :filename, :caption, :voice_note, :video_note, :size, :duration,
                             :width, :height, :waveform, :thumbnail, :ref)
     include Serializable
     wire_type 'media', embed: true
     coerce ref: MediaRef
+    # `video_note` has no default on purpose: the connector leaves it out unless it is true,
+    # and a false here would be written into every payload that round-trips the model.
     defaults voice_note: false
 
     KINDS = %w[image video audio document sticker].freeze
@@ -87,22 +89,30 @@ module Whatsapp::Session::Model::Content
 
   # An interactive or templated card. The parts are kept separate because that is how the
   # dashboard renders them; `preview_text` is what the message row stores as content.
-  class Rich < Data.define(:kind, :title, :body, :footer, :buttons, :media)
+  # A catalog product or order travels as a card too (`product`, `order`), because a
+  # client refuses a content type it does not know. Its title and footer are the
+  # connector's English fallback ("3 items", "(estimated total)"), so the text
+  # of those two kinds is written here, in the locale the caller set, from the data.
+  class Rich < Data.define(:kind, :title, :body, :footer, :buttons, :media, :product, :order)
     include Serializable
     wire_type 'rich', embed: true
-    coerce media: Media
+    coerce media: Media, product: Whatsapp::Session::Model::Product, order: Whatsapp::Session::Model::Order
     defaults buttons: []
 
     def preview_text
+      return Whatsapp::Session::CatalogText.product(product) if kind == 'product' && product
+      return Whatsapp::Session::CatalogText.order(order, note: body) if kind == 'order' && order
+
       lines = [title, body, footer, *button_lines]
       lines.compact_blank.join("\n\n").presence
     end
 
     # What content_attributes['rich'] stores, matching the shape the Baileys layer
-    # already persists so the message bubble renders both the same way.
+    # already persists so the message bubble renders both the same way. The product and
+    # the order go whole, an empty one included: the card is drawn from them.
     def to_content_attribute
       { 'type' => kind, 'title' => title, 'body' => body, 'footer' => footer,
-        'buttons' => Array(buttons).presence }.compact.presence
+        'buttons' => Array(buttons).presence, 'product' => product&.to_h, 'order' => order&.to_h }.compact.presence
     end
 
     private

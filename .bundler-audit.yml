@@ -28,7 +28,7 @@
 # ReDoS de criticidade alta, até a base subir para a 2.0 —, a pergunta deixa de ser "ignoro mais um?"
 # e passa a ser "por quanto tempo ainda dependemos disto?". É para essa conversa que a data existe.
 #
-# REVISAR-EM: 2026-11-07
+# REVISAR-EM: 2026-12-26
 #
 # Ao revisar: conferir se a restrição que impede a correção caiu. Se caiu, subir a gem e APAGAR a
 # linha daqui. Nunca estender a data sem reler o motivo. E nunca deixar linha que já não é acusada:
@@ -42,6 +42,9 @@ ignore:
   # revisão, se o alcance do aviso é largo demais e 0.x nunca teve o defeito.
   # O que o rack-proxy serve aqui é o proxy do servidor de desenvolvimento do vite — conferir
   # também se ele chega a ser carregado em produção.
+  # Revisado em 25/11/2026 (base 4.20.1): com a lista vazia, o bundle-audit acusa SO este aviso, e o
+  # vite_ruby segue exigindo rack-proxy ~> 0.6. No mesmo dia subiram rails 8.1.4.1, omniauth 2.4.2,
+  # rack-protection 4.2.2, msgpack 1.8.7 e puma 7.2.4, que fecharam os outros avisos sem ignorar nada.
   - GHSA-42qh-8mx8-7wqm
 
   # ✅ AS DUAS ENTRADAS DO DEVISE SAÍRAM DAQUI EM 11/10/2026, e é assim que esta lista encolhe.

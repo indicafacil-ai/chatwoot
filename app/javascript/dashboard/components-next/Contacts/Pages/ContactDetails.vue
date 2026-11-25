@@ -3,6 +3,10 @@ import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import {
+  CONTACT_FIELD_LABELS,
+  requestErrorMessage,
+} from 'dashboard/helper/requestErrorMessage';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useExactTimestamp } from 'shared/composables/useExactTimestamp';
 
@@ -10,6 +14,7 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import ContactLabels from 'dashboard/components-next/Contacts/ContactLabels/ContactLabels.vue';
 import ContactsForm from 'dashboard/components-next/Contacts/ContactsForm/ContactsForm.vue';
+import UnverifiedContactDetails from 'dashboard/components-next/Contacts/UnverifiedContactDetails.vue';
 import ConfirmContactDeleteDialog from 'dashboard/components-next/Contacts/ContactsForm/ConfirmContactDeleteDialog.vue';
 import Policy from 'dashboard/components/policy.vue';
 
@@ -66,6 +71,17 @@ const avatarSrc = computed(() => {
   return avatarUrl.value ? avatarUrl.value : contactData.value?.thumbnail;
 });
 
+// A claim settled from the unverified details: write only what changed into the local copy and into
+// the form's own state, which may hold edits not yet emitted (the form emits only once valid).
+const applySettledClaim = ({ changes, claimKey }) => {
+  Object.assign(contactData.value, changes);
+  Object.assign(contactsFormRef.value.state, changes);
+  contactData.value.additionalAttributes = {
+    ...contactData.value.additionalAttributes,
+    [claimKey]: null,
+  };
+};
+
 const handleFormUpdate = updatedData => {
   Object.assign(contactData.value, updatedData);
 };
@@ -87,7 +103,14 @@ const updateContact = async () => {
     );
     useAlert(t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.SUCCESS_MESSAGE'));
   } catch (error) {
-    useAlert(t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.ERROR_MESSAGE'));
+    useAlert(
+      requestErrorMessage(
+        error,
+        t,
+        'CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.ERROR_MESSAGE',
+        CONTACT_FIELD_LABELS
+      )
+    );
   }
 };
 
@@ -106,8 +129,15 @@ const handleAvatarUpload = async ({ file, url }) => {
       isFormData: true,
     });
     useAlert(t('CONTACTS_LAYOUT.DETAILS.AVATAR.UPLOAD.SUCCESS_MESSAGE'));
-  } catch {
-    useAlert(t('CONTACTS_LAYOUT.DETAILS.AVATAR.UPLOAD.ERROR_MESSAGE'));
+  } catch (error) {
+    useAlert(
+      requestErrorMessage(
+        error,
+        t,
+        'CONTACTS_LAYOUT.DETAILS.AVATAR.UPLOAD.ERROR_MESSAGE',
+        CONTACT_FIELD_LABELS
+      )
+    );
   }
 };
 
@@ -187,6 +217,11 @@ const handleAvatarDelete = async () => {
       <ContactLabels :contact-id="selectedContact?.id" />
     </div>
     <div class="flex flex-col items-start gap-6">
+      <UnverifiedContactDetails
+        v-if="selectedContact"
+        :contact="selectedContact"
+        @settled="applySettledClaim"
+      />
       <ContactsForm
         ref="contactsFormRef"
         :contact-data="contactData"

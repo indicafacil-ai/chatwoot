@@ -21,6 +21,9 @@ ANTES do JS do Administrate).
   <%= javascript_include_tag js_path %>
 <% end %>
 
+<%= javascript_include_tag 'rails-ujs' %>
+<%= javascript_include_tag 'belongsToSearchField' %>
+
 <%= yield :javascript %>
 
 <% if Rails.env.test? %>

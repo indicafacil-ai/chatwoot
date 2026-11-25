@@ -14,8 +14,12 @@ class Whatsapp::Session::Inbound::MessageAttributes
   HISTORY_MEDIA = 'history_media'.freeze
 
   # Unsupported for good, as opposed to an imported file that is still waiting for its bytes.
+  # A history card whose header is gone is marked apart (`media_unavailable`), since the
+  # card itself still reads.
   def self.given_up?(message)
     attributes = message.content_attributes || {}
+    return true if attributes['media_unavailable'].present?
+
     attributes['is_unsupported'].present? && attributes[HISTORY_MEDIA].blank?
   end
 
@@ -25,7 +29,7 @@ class Whatsapp::Session::Inbound::MessageAttributes
   end
 
   def to_h
-    origin.merge(body).compact
+    origin.merge(quote, body).compact
   end
 
   # A rich card with no text and no media header renders as an empty bubble, which is
@@ -75,7 +79,6 @@ class Whatsapp::Session::Inbound::MessageAttributes
       # rewriting it, both of which move what the contact answers to without moving who
       # wrote the message.
       external_author: author_identity,
-      in_reply_to_external_id: inbound.quoted_id.presence,
       referral: inbound.referral.presence,
       # Not the same statement as `external_created_at`, which every session message
       # carries: this one says the row was filed after the fact, which is what a report
@@ -86,6 +89,15 @@ class Whatsapp::Session::Inbound::MessageAttributes
       # Read off the level the importer writes it under, which is where that is decided.
       history_archive: (true if imported && Import::SilentWrite.archive?)
     }
+  end
+
+  # What the message quotes. A question asked from a catalog quotes a product, and its
+  # quoted_id (product_inquiry_<id>) names no message: following it would draw a "quoted
+  # message not found" box over every such question. The product, empty or not, is the quote.
+  def quote
+    return { quoted_product: inbound.quoted_product.to_h } if inbound.quoted_product
+
+    { in_reply_to_external_id: inbound.quoted_id.presence }
   end
 
   # What the row says about a body it does not have, and what a later fetch would need to
@@ -99,10 +111,23 @@ class Whatsapp::Session::Inbound::MessageAttributes
       unsupported_reason: (content.reason if content_type == 'unsupported'),
       # What arrived in the body's place, for whoever investigates the placeholder later.
       unsupported_detail: (content.detail if content_type == 'unsupported'),
-      # The key is HISTORY_MEDIA, spelled out so the hash keeps one syntax.
-      history_media: (true if imported && unfetchable_media?),
-      pending_media: pending_media,
       rich: (content.to_content_attribute if content_type == 'rich')
+    }.merge(history_file)
+  end
+
+  # What a history file whose bytes did not come needs to be asked for later. The header of
+  # a card with readable text counts too: the card is not marked unsupported, but the header
+  # is still worth asking for.
+  def history_file
+    pending = imported && pending_media.present?
+    {
+      # The key is HISTORY_MEDIA, spelled out so the hash keeps one syntax.
+      history_media: (true if pending),
+      pending_media: pending_media,
+      # The chat the file is asked for under: the provider files a history message in the
+      # chat the event named, which for a direct chat is not always the address the
+      # contact was resolved to (see Whatsapp::Session::HistoryMedia.chat_for).
+      pending_chat: (inbound.chat&.to_h if pending)
     }
   end
 
@@ -133,7 +158,8 @@ class Whatsapp::Session::Inbound::MessageAttributes
     return if media.nil? || media.ref.present?
 
     Whatsapp::Session::Model::Content::Media.new(
-      kind: media.kind, mime: media.mime, filename: media.filename, voice_note: media.voice_note
+      kind: media.kind, mime: media.mime, filename: media.filename, voice_note: media.voice_note,
+      video_note: media.video_note
     ).to_h
   end
 end

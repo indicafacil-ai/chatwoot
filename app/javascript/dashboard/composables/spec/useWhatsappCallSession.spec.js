@@ -1,456 +1,161 @@
-import { setActivePinia, createPinia } from 'pinia';
-import WhatsappCallsAPI from 'dashboard/api/channel/whatsapp/whatsappCallsAPI';
-import { useCallsStore } from 'dashboard/stores/calls';
-import { markCallDismissed } from 'dashboard/helper/voice';
 import {
-  applyOutboundAnswer,
-  armOutboundRecorder,
-  CALL_STATUS_LOOKUP_LIMIT_MS,
   cleanupWhatsappSession,
-  OUTBOUND_RINGING_LIMIT_MS,
-  handleWhatsappRemoteEnd,
-  hasActiveWhatsappCall,
-  noteEarlyOutboundOutcome,
-  takeEarlyOutboundEnd,
+  isWhatsappCallConnected,
+  sendWhatsappDigits,
   useWhatsappCallSession,
-} from 'dashboard/composables/useWhatsappCallSession';
+} from '../useWhatsappCallSession';
 
-vi.mock('dashboard/helper/voice', async importOriginal => ({
-  ...(await importOriginal()),
-  markCallDismissed: vi.fn(),
-}));
-vi.mock('dashboard/api/channel/whatsapp/whatsappCallsAPI', () => ({
-  default: {
-    initiate: vi.fn(),
-    uploadRecording: vi.fn(() => Promise.resolve()),
-    show: vi.fn(() => Promise.resolve({ status: 'ringing' })),
-    terminate: vi.fn(() => Promise.resolve()),
-  },
-}));
-
-let peers = [];
-// Stands in for the browser's peer connection: enough of it to place a call, and a way
-// to make its transport fail.
-function FakePeerConnection() {
-  const peer = {
-    connectionState: 'new',
-    iceGatheringState: 'complete',
-    localDescription: { sdp: 'v=0\r\n' },
-    addTrack: () => {},
-    createOffer: () => Promise.resolve({ type: 'offer', sdp: 'v=0\r\n' }),
-    setLocalDescription: () => Promise.resolve(),
-    remoteDescription: null,
-    setRemoteDescription: description => {
-      peer.remoteDescription = description;
-      return Promise.resolve();
-    },
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    close: () => {
-      peer.connectionState = 'closed';
-    },
-    fail: () => {
-      peer.connectionState = 'failed';
-      peer.onconnectionstatechange?.();
-    },
-  };
-  peers.push(peer);
-  return peer;
-}
-
-describe('useWhatsappCallSession, a call whose transport is lost', () => {
-  afterEach(() => cleanupWhatsappSession());
+describe('sendWhatsappDigits', () => {
+  let peerConnection;
 
   beforeEach(() => {
-    // The failure handler removes the call's card from the store, in every example.
-    setActivePinia(createPinia());
-    peers = [];
-    vi.clearAllMocks();
-    global.RTCPeerConnection = FakePeerConnection;
-    global.MediaStream = function FakeMediaStream() {
-      return {
-        getTracks: () => [],
-        getAudioTracks: () => [],
-        addTrack: () => {},
-      };
+    const localTrack = { stop: vi.fn() };
+    const localStream = {
+      getTracks: vi.fn(() => [localTrack]),
     };
-    Object.defineProperty(global.navigator, 'mediaDevices', {
-      configurable: true,
-      value: { getUserMedia: () => Promise.resolve({ getTracks: () => [] }) },
-    });
-  });
-
-  // A paired phone's connector can hang up a call it no longer carries without the end
-  // reaching the dashboard, and nothing else would release the call.
-  it('ends the call it was placing when the transport fails', async () => {
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-
-    peers.at(-1).fail();
-
-    expect(WhatsappCallsAPI.terminate).toHaveBeenCalledWith(42);
-    await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-  });
-
-  // Nothing will broadcast the end of a call whose end could not be asked for.
-  it('releases the session when the end cannot be asked for either', async () => {
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    WhatsappCallsAPI.terminate.mockRejectedValueOnce(new Error('offline'));
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-    useCallsStore().addCall({
-      callSid: 'CALLOUT1',
-      callId: 42,
-      callDirection: 'outbound',
-      provider: 'whatsapp',
-    });
-
-    peers.at(-1).fail();
-
-    await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    await vi.waitFor(() => expect(useCallsStore().calls).toHaveLength(0));
-    // So a ringing message still queued for it does not bring it back.
-    expect(markCallDismissed).toHaveBeenCalledWith('CALLOUT1');
-  });
-
-  // A request that hangs would otherwise hold the microphone for as long as it does.
-  it('releases the session and the card while the end is still being asked for', async () => {
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    WhatsappCallsAPI.terminate.mockReturnValueOnce(new Promise(() => {}));
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-    useCallsStore().addCall({
-      callSid: 'CALLOUT1',
-      callId: 42,
-      callDirection: 'outbound',
-      provider: 'whatsapp',
-    });
-
-    peers.at(-1).fail();
-
-    await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    await vi.waitFor(() => expect(useCallsStore().calls).toHaveLength(0));
-  });
-
-  // The end went through, but its broadcast is not replayed to a tab whose cable was down.
-  it('releases the session and the card when the end went through unannounced', async () => {
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-    useCallsStore().addCall({
-      callSid: 'CALLOUT1',
-      callId: 42,
-      callDirection: 'outbound',
-      provider: 'whatsapp',
-    });
-
-    peers.at(-1).fail();
-
-    expect(WhatsappCallsAPI.terminate).toHaveBeenCalledWith(42);
-    await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    await vi.waitFor(() => expect(useCallsStore().calls).toHaveLength(0));
-  });
-
-  it('does nothing for a transport that is only being set up', async () => {
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-
-    const peer = peers.at(-1);
-    peer.connectionState = 'connecting';
-    peer.onconnectionstatechange();
-
-    expect(WhatsappCallsAPI.terminate).not.toHaveBeenCalled();
-  });
-
-  // The dial is applying an answer that raced ahead of it when the call ends, and the
-  // end tears the session down before the dial returns the call it placed.
-  it('keeps an end that tore the session down for the call the dial returns', async () => {
-    let answered;
-    WhatsappCallsAPI.initiate.mockImplementation(async () => {
-      await applyOutboundAnswer(42, 'v=0\r\n');
-      peers.at(-1).setRemoteDescription = () =>
-        new Promise(resolve => {
-          answered = resolve;
-        });
-      return { id: 42, call_id: 'CALLOUT1' };
-    });
-    const session = useWhatsappCallSession();
-    const dialing = session.initiateOutboundCall({ conversationId: 1 });
-    await vi.waitFor(() => expect(answered).toBeDefined());
-
-    noteEarlyOutboundOutcome(42, 'ended');
-    await handleWhatsappRemoteEnd(42);
-    answered();
-    await dialing;
-
-    expect(takeEarlyOutboundEnd(42)).toBe('ended');
-  });
-
-  // The transport failing while the dial still applies a buffered answer is an end too, and
-  // the end broadcast may be what was lost: the call the dial returns must not be added
-  // back as ringing.
-  it('keeps the end of a transport that failed while the dial was being answered', async () => {
-    let answered;
-    WhatsappCallsAPI.initiate.mockImplementation(async () => {
-      await applyOutboundAnswer(42, 'v=0\r\n');
-      peers.at(-1).setRemoteDescription = () =>
-        new Promise(resolve => {
-          answered = resolve;
-        });
-      return { id: 42, call_id: 'CALLOUT1' };
-    });
-    const session = useWhatsappCallSession();
-    const dialing = session.initiateOutboundCall({ conversationId: 1 });
-    await vi.waitFor(() => expect(answered).toBeDefined());
-
-    peers.at(-1).fail();
-    await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    answered();
-    await dialing;
-
-    expect(takeEarlyOutboundEnd(42)).toBe('ended');
-  });
-
-  // Asked for by the broadcast and by the store adding the call whose end it kept.
-  it('ends a call asked to end twice once, the second waiting for the first', async () => {
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-
-    const first = handleWhatsappRemoteEnd(42);
-    const second = handleWhatsappRemoteEnd(42);
-
-    expect(second).toBe(first);
-    await first;
-    expect(hasActiveWhatsappCall()).toBe(false);
-  });
-
-  // Before the callee answers there is no transport whose failure would report a lost call.
-  describe('a placed call still ringing', () => {
-    afterEach(() => vi.useRealTimers());
-
-    it('is let go of once it rang longer than WhatsApp rings', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS - 1);
-      expect(WhatsappCallsAPI.terminate).not.toHaveBeenCalled();
-      await vi.advanceTimersByTimeAsync(1);
-
-      expect(WhatsappCallsAPI.terminate).toHaveBeenCalledWith(42);
-      await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    });
-
-    // The pickup can be handled while the request placing the call is still out.
-    it('is not timed when it was picked up before the dial returned', async () => {
-      vi.useFakeTimers();
-      // The connector reports the pickup and its answer as one event.
-      WhatsappCallsAPI.initiate.mockImplementation(async () => {
-        await applyOutboundAnswer(42, 'v=0\r\n');
-        armOutboundRecorder();
-        return { id: 42, call_id: 'CALLOUT1' };
-      });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS * 2);
-
-      expect(WhatsappCallsAPI.terminate).not.toHaveBeenCalled();
-    });
-
-    // The cable can drop after the answer got through and before the pickup did.
-    it('is kept when the call says it was picked up', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      WhatsappCallsAPI.show.mockResolvedValueOnce({ status: 'in-progress' });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-      await applyOutboundAnswer(42, 'v=0\r\n');
-
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS);
-
-      expect(WhatsappCallsAPI.show).toHaveBeenCalledWith(42);
-      expect(WhatsappCallsAPI.terminate).not.toHaveBeenCalled();
-      expect(hasActiveWhatsappCall()).toBe(true);
-    });
-
-    // The answer can be lost with the pickup: up on WhatsApp, the call carries nothing here.
-    it('is let go of when it is up but its answer never reached this tab', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      WhatsappCallsAPI.show.mockResolvedValueOnce({ status: 'in-progress' });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS);
-
-      expect(WhatsappCallsAPI.terminate).toHaveBeenCalledWith(42);
-      await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    });
-
-    it('is kept when the pickup arrives while the call is being asked about', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      WhatsappCallsAPI.show.mockImplementationOnce(async () => {
-        await applyOutboundAnswer(42, 'v=0\r\n');
-        armOutboundRecorder();
-        return { status: 'ringing' };
-      });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS);
-
-      expect(WhatsappCallsAPI.terminate).not.toHaveBeenCalled();
-      expect(hasActiveWhatsappCall()).toBe(true);
-    });
-
-    it('is let go of when asking about it hangs', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      WhatsappCallsAPI.show.mockReturnValueOnce(new Promise(() => {}));
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      await vi.advanceTimersByTimeAsync(
-        OUTBOUND_RINGING_LIMIT_MS + CALL_STATUS_LOOKUP_LIMIT_MS
-      );
-
-      expect(WhatsappCallsAPI.terminate).toHaveBeenCalledWith(42);
-      await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    });
-
-    it('is left to the transport once the callee picked up', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      await applyOutboundAnswer(42, 'v=0\r\n');
-      armOutboundRecorder();
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS * 2);
-
-      expect(WhatsappCallsAPI.terminate).not.toHaveBeenCalled();
-    });
-
-    // A pickup whose answer never reached this tab, or failed to apply, leaves a peer that
-    // never negotiates and so never fails: the pickup alone does not hand the call over.
-    it('is let go of when the callee picked up but the answer was never applied', async () => {
-      vi.useFakeTimers();
-      WhatsappCallsAPI.initiate.mockResolvedValue({
-        id: 42,
-        call_id: 'CALLOUT1',
-      });
-      WhatsappCallsAPI.show.mockResolvedValue({ status: 'in-progress' });
-      const session = useWhatsappCallSession();
-      await session.initiateOutboundCall({ conversationId: 1 });
-
-      armOutboundRecorder();
-      await vi.advanceTimersByTimeAsync(OUTBOUND_RINGING_LIMIT_MS);
-
-      expect(WhatsappCallsAPI.terminate).toHaveBeenCalledWith(42);
-      await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    });
-  });
-
-  // An upload has no ceiling, and the recording is not what holds the microphone.
-  it('releases a lost recorded call while its recording is still uploading', async () => {
-    const tracks = [];
-    global.MediaStream = function FakeMediaStream() {
-      return {
-        getTracks: () => tracks,
-        getAudioTracks: () => tracks,
-        addTrack: track => tracks.push(track),
-      };
+    const remoteStream = {
+      addTrack: vi.fn(),
+      getAudioTracks: vi.fn(() => []),
+      getTracks: vi.fn(() => []),
     };
-    global.AudioContext = function FakeAudioContext() {
-      return {
-        state: 'running',
-        resume: () => Promise.resolve(),
-        close: () => Promise.resolve(),
-        createMediaStreamDestination: () => ({ stream: {} }),
-        createMediaStreamSource: () => ({ connect: () => {} }),
-      };
+
+    peerConnection = {
+      connectionState: 'new',
+      addTrack: vi.fn(),
+      close: vi.fn(),
+      createOffer: vi.fn().mockResolvedValue({ type: 'offer', sdp: 'offer' }),
+      getSenders: vi.fn(() => []),
+      iceGatheringState: 'complete',
+      localDescription: null,
+      setLocalDescription: vi.fn(async description => {
+        peerConnection.localDescription = description;
+      }),
     };
-    global.MediaRecorder = class FakeMediaRecorder {
-      static isTypeSupported = () => true;
 
-      state = 'inactive';
-
-      listeners = [];
-
-      addEventListener(_, listener) {
-        this.listeners.push(listener);
-      }
-
-      start() {
-        this.state = 'recording';
-        this.ondataavailable({ data: { size: 10, type: 'audio/ogg' } });
-      }
-
-      stop() {
-        this.state = 'inactive';
-        this.listeners.forEach(listener => listener());
-      }
-    };
-    window.HTMLMediaElement.prototype.play = () => Promise.resolve();
-    WhatsappCallsAPI.uploadRecording.mockReturnValueOnce(new Promise(() => {}));
-    WhatsappCallsAPI.initiate.mockResolvedValue({
-      id: 42,
-      call_id: 'CALLOUT1',
-    });
-    const session = useWhatsappCallSession();
-    await session.initiateOutboundCall({ conversationId: 1 });
-    armOutboundRecorder();
-    peers.at(-1).ontrack({ track: { kind: 'audio', stop: () => {} } });
-
-    peers.at(-1).fail();
-
-    await vi.waitFor(() => expect(hasActiveWhatsappCall()).toBe(false));
-    expect(WhatsappCallsAPI.uploadRecording).toHaveBeenCalledWith(
-      42,
-      expect.anything(),
-      'call-recording.ogg'
+    vi.stubGlobal(
+      'MediaStream',
+      vi.fn(() => remoteStream)
     );
+    vi.stubGlobal(
+      'RTCPeerConnection',
+      vi.fn(() => peerConnection)
+    );
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue(localStream),
+      },
+    });
+  });
+
+  afterEach(() => {
+    cleanupWhatsappSession();
+    vi.unstubAllGlobals();
+  });
+
+  it('tracks the peer connection and clears readiness when it disconnects or is cleaned up', async () => {
+    await useWhatsappCallSession().prepareOutboundOffer();
+    expect(isWhatsappCallConnected.value).toBe(false);
+
+    peerConnection.connectionState = 'connected';
+    peerConnection.onconnectionstatechange();
+    expect(isWhatsappCallConnected.value).toBe(true);
+
+    peerConnection.connectionState = 'disconnected';
+    peerConnection.onconnectionstatechange();
+    expect(isWhatsappCallConnected.value).toBe(false);
+
+    peerConnection.connectionState = 'connected';
+    peerConnection.onconnectionstatechange();
+    expect(isWhatsappCallConnected.value).toBe(true);
+    cleanupWhatsappSession();
+    expect(isWhatsappCallConnected.value).toBe(false);
+    peerConnection.onconnectionstatechange();
+    expect(isWhatsappCallConnected.value).toBe(false);
+  });
+
+  it('returns false when there is no peer connection', () => {
+    expect(sendWhatsappDigits('9')).toBe(false);
+  });
+
+  it('returns false when there is no audio sender and ignores video senders', async () => {
+    const insertDTMF = vi.fn();
+    peerConnection.getSenders.mockReturnValue([
+      {
+        track: { kind: 'video' },
+        dtmf: { canInsertDTMF: true, insertDTMF, toneBuffer: '' },
+      },
+    ]);
+    await useWhatsappCallSession().prepareOutboundOffer();
+
+    expect(sendWhatsappDigits('9')).toBe(false);
+    expect(insertDTMF).not.toHaveBeenCalled();
+  });
+
+  it('returns false when the audio sender has no DTMF support', async () => {
+    peerConnection.getSenders.mockReturnValue([{ track: { kind: 'audio' } }]);
+    await useWhatsappCallSession().prepareOutboundOffer();
+
+    expect(sendWhatsappDigits('*')).toBe(false);
+  });
+
+  it('returns false when the audio sender cannot insert DTMF', async () => {
+    const insertDTMF = vi.fn();
+    peerConnection.getSenders.mockReturnValue([
+      {
+        track: { kind: 'audio' },
+        dtmf: { canInsertDTMF: false, insertDTMF },
+      },
+    ]);
+    await useWhatsappCallSession().prepareOutboundOffer();
+
+    expect(sendWhatsappDigits('*')).toBe(false);
+    expect(insertDTMF).not.toHaveBeenCalled();
+  });
+
+  it('appends a digit to buffered tones and inserts it once', async () => {
+    const insertDTMF = vi.fn();
+    peerConnection.getSenders.mockReturnValue([
+      {
+        track: { kind: 'audio' },
+        dtmf: { canInsertDTMF: true, insertDTMF, toneBuffer: '12' },
+      },
+    ]);
+    await useWhatsappCallSession().prepareOutboundOffer();
+
+    expect(sendWhatsappDigits('#')).toBe(true);
+    expect(insertDTMF).toHaveBeenCalledOnce();
+    expect(insertDTMF).toHaveBeenCalledWith('12#', 500, 100);
+  });
+
+  it('returns false when insertion loses the WebRTC state race', async () => {
+    const insertDTMF = vi.fn(() => {
+      throw new DOMException('Peer connection closed', 'InvalidStateError');
+    });
+    peerConnection.getSenders.mockReturnValue([
+      {
+        track: { kind: 'audio' },
+        dtmf: { canInsertDTMF: true, insertDTMF, toneBuffer: '' },
+      },
+    ]);
+    await useWhatsappCallSession().prepareOutboundOffer();
+
+    expect(sendWhatsappDigits('0')).toBe(false);
+    expect(insertDTMF).toHaveBeenCalledOnce();
+  });
+
+  it('rethrows unrelated insertion errors', async () => {
+    const insertionError = new Error('DTMF device failure');
+    const insertDTMF = vi.fn(() => {
+      throw insertionError;
+    });
+    peerConnection.getSenders.mockReturnValue([
+      {
+        track: { kind: 'audio' },
+        dtmf: { canInsertDTMF: true, insertDTMF, toneBuffer: '' },
+      },
+    ]);
+    await useWhatsappCallSession().prepareOutboundOffer();
+
+    expect(() => sendWhatsappDigits('5')).toThrow(insertionError);
   });
 });

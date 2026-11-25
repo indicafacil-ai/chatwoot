@@ -35,19 +35,30 @@ class Conversations::EventDataPresenter < SimpleDelegator
 
   # The contact's copy of `push_data`. See CONTACT_PUSH_KEYS before widening it.
   def contact_push_data
-    push_data.slice(*CONTACT_PUSH_KEYS)
+    self.class.contact_slice(push_data.slice(*CONTACT_PUSH_KEYS))
   end
 
   # Narrows an already-built agent payload instead of rebuilding it, so a
   # listener that broadcasts to both audiences pays for `push_data` once.
   def self.contact_slice(payload)
-    payload.slice(*CONTACT_PUSH_KEYS, *CONTACT_SAFE_EVENT_KEYS)
+    data = payload.slice(*CONTACT_PUSH_KEYS, *CONTACT_SAFE_EVENT_KEYS)
+    data[:messages] = data[:messages].map { |message| contact_message(message) } if data[:messages].present?
+    data
+  end
+
+  # A message is the contact's to see, sender included. The conversation it
+  # embeds names the assigned agent, which agents read (the dashboard's audio
+  # alerts) and the contact must not.
+  def self.contact_message(message)
+    return message if message[:conversation].blank?
+
+    message.merge(conversation: message[:conversation].except(:assignee_id))
   end
 
   def push_data # rubocop:disable Metrics/MethodLength
     {
       additional_attributes: additional_attributes,
-      can_reply: can_reply?,
+      **push_reply_state,
       channel: inbox.try(:channel_type),
       contact_inbox: contact_inbox,
       group_type: group_type,
@@ -114,6 +125,16 @@ class Conversations::EventDataPresenter < SimpleDelegator
     )
   end
 
+  # The widget learns the conversation's id, inbox, read state and status, not the contact or the agents
+  def widget_data
+    {
+      id: display_id,
+      inbox_id: inbox_id,
+      contact_last_seen_at: contact_last_seen_at.to_i,
+      status: status
+    }
+  end
+
   private
 
   # This payload also reaches the contact: ActionCableListener broadcasts
@@ -157,6 +178,13 @@ class Conversations::EventDataPresenter < SimpleDelegator
 
   def webhook_push_messages
     [messages.where(account_id: account_id).chat.last&.webhook_push_event_data].compact
+  end
+
+  def push_reply_state
+    {
+      anonymous_caller: contact_inbox&.anonymous_caller?,
+      can_reply: can_reply?
+    }
   end
 
   def push_meta

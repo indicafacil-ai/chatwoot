@@ -6,12 +6,26 @@
 #
 # Adding a language means adding indica_facil.<locale>.yml. Nothing else changes.
 es:
+  whatsapp_catalog:
+    price: '%{number} %{unit}'
+    separator: ','
+    delimiter: '.'
+    product_unreadable: Mensaje con un producto del catálogo. Míralo en WhatsApp.
+    order_title: Pedido %{id}
+    item_count:
+      one: 1 artículo
+      other: '%{count} artículos'
+    estimated_total: '%{total} (total estimado)'
   internal_chat:
     default_category_name: Canales
     default_channel_name: General
     messages:
       deleted: Este mensaje fue eliminado
   errors:
+    attachments:
+      video_note:
+        with_text: La videonota no lleva texto. Envía el texto en un mensaje aparte.
+        not_alone: La videonota va sola. Envía los demás archivos en mensajes aparte.
     articles:
       invalid_sort: Orden de artículos desconocido. Usa updated_at, created_at, title o views, con - delante para orden descendente.
     request:
@@ -31,7 +45,8 @@ es:
     scheduled_messages:
       cannot_delete_processed: No se puede eliminar un mensaje programado que ya se envió o que falló
     conversations:
-      already_assigned: '%{agent_name} ya está atendiendo esta conversación.'
+      already_assigned: "%{agent_name} ya está atendiendo esta conversación."
+      outside_working_hours: "Esta bandeja está fuera de su horario de atención, así que sus conversaciones no se pueden asignar ahora."
     conversation_pins:
       limit_reached: Puede fijar hasta %{limit} conversaciones.
       conversation_resolved: No se puede fijar una conversación resuelta.
@@ -41,12 +56,6 @@ es:
       messaging_window_closed: La ventana de respuesta de Meta para este contacto se cerró. Se reabre cuando el contacto envíe un mensaje nuevo.
       messaging_window_closed_for_automation: Meta solo acepta respuestas automáticas hasta 24 horas después del último mensaje del contacto. Toma la conversación para responder como agente.
     whatsapp:
-      calls:
-        group_not_supported: No se puede llamar a un grupo
-        proxy_unsupported: 'Las llamadas de WhatsApp no pasan por un proxy. Quita el proxy de esta bandeja para activar las llamadas.'
-        connector_without_calls: 'El conector de WhatsApp de esta instalación no lleva la voz de las llamadas: necesita WAC_CALLS_UDP_PORT definido y ese puerto publicado en UDP.'
-        provider_unsupported: 'Este proveedor de WhatsApp no hace llamadas.'
-        channel_voice_required: 'Las llamadas no están disponibles en el plan de esta cuenta.'
       group_announcement_only: Solo los administradores pueden enviar mensajes en este grupo
       group_description_cannot_be_removed: WhatsApp no permite eliminar la descripción de un grupo una vez definida. Reemplace el texto en lugar de borrarlo.
     inboxes:
@@ -194,3 +203,61 @@ es:
       handled_count: Conversaciones atendidas
       avg_customer_waiting_time: Tiempo promedio de espera del cliente
       resolution_count: Recuento de resoluciones
+  super_admin:
+    instance_status:
+      whatsapp_connector:
+        label: 'Conector de WhatsApp (nativo)'
+        running: 'en ejecución'
+        not_running: 'detenido'
+        unreachable: 'no se pudo leer: %{error}'
+        instance: 'Conector de WhatsApp %{id}'
+        start_error: 'Error al iniciar el conector de WhatsApp (%{instance})'
+    accounts:
+      agent_restrictions: 'Restricciones de agente'
+      agent_restrictions_hint: 'Se guardan junto con el formulario de arriba.'
+    settings:
+      pages:
+        branding: 'Marca'
+        branding_description: 'El nombre, los logos y los enlaces que muestra esta instalación. Guardados aquí, tienen prioridad sobre las variables de marca del entorno.'
+    app_configs:
+      branding:
+        invalid_color: 'El color de la marca debe ser un color hexadecimal, como #1f93ff.'
+      general:
+        invalid_message_search_min_query_length: 'La longitud mínima del término en la búsqueda de mensajes debe ser un número entero, 0 o mayor.'
+      fields:
+        INSTALLATION_NAME:
+          title: 'Nombre de la instalación'
+          description: 'El nombre que se muestra en el panel, en el título de la página y en los correos.'
+        LOGO_THUMBNAIL:
+          title: 'Miniatura del logo'
+          description: 'La imagen cuadrada que se usa como favicon (512 × 512 px).'
+        LOGO:
+          title: 'Logo'
+          description: 'El logo del panel y de la pantalla de inicio de sesión.'
+        LOGO_DARK:
+          title: 'Logo para el modo oscuro'
+          description: 'El logo del panel y de la pantalla de inicio de sesión en modo oscuro.'
+        LOGO_EMAIL:
+          title: 'Logo de los correos'
+          description: 'El logo en la parte superior de los correos enviados. Solo PNG, JPG o GIF: los clientes de correo no muestran SVG. Si queda vacío, se usa el logo de arriba cuando está en uno de esos formatos.'
+        BRAND_NAME:
+          title: 'Nombre de la marca'
+          description: 'El nombre que se usa en los correos y en el widget.'
+        BRAND_URL:
+          title: 'URL de la marca'
+          description: 'A dónde apunta la línea "Powered by" de los correos.'
+        WIDGET_BRAND_URL:
+          title: 'URL de la marca en el widget'
+          description: 'A dónde apunta la línea "Powered by" del widget.'
+        BRAND_COLOR:
+          title: 'Color de la marca'
+          description: 'Color hexadecimal que se usa en los correos y en el tema de la app, como #1f93ff.'
+        TERMS_URL:
+          title: 'URL de los términos de servicio'
+          description: 'Aparece en la pantalla de registro.'
+        PRIVACY_URL:
+          title: 'URL de la política de privacidad'
+          description: 'Aparece en la app.'
+        DISPLAY_MANIFEST:
+          title: 'Metadatos de Chatwoot'
+          description: 'Muestra los favicons predeterminados de Chatwoot y los avisos de actualización.'

@@ -17,7 +17,12 @@ import {
   useMapGetter,
 } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
+import {
+  usePageCommands,
+  recordCommands,
+} from 'dashboard/modules/command-bar/composables/usePageCommands';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { requestErrorMessage } from 'dashboard/helper/requestErrorMessage';
 
 const { t } = useI18n();
 
@@ -42,6 +47,7 @@ const attributeModels = [
 const openAddPopup = () => {
   toggleAddPopup(true);
 };
+
 const hideAddPopup = () => {
   toggleAddPopup(false);
 };
@@ -107,8 +113,11 @@ const confirmDeleteAttribute = async () => {
     useAlert(t('ATTRIBUTES_MGMT.DELETE.API.SUCCESS_MESSAGE'));
     closeDelete();
   } catch (error) {
-    const errorMessage =
-      error?.response?.message || t('ATTRIBUTES_MGMT.DELETE.API.ERROR_MESSAGE');
+    const errorMessage = requestErrorMessage(
+      error,
+      t,
+      'ATTRIBUTES_MGMT.DELETE.API.ERROR_MESSAGE'
+    );
     useAlert(errorMessage);
   }
 };
@@ -166,6 +175,30 @@ const filteredAttributes = computed(() => {
     'attribute_description',
   ]);
 });
+
+usePageCommands(() => [
+  {
+    id: 'add_custom_attribute',
+    title: t('ATTRIBUTES_MGMT.HEADER_BTN_TXT'),
+    run: openAddPopup,
+  },
+  ...recordCommands({
+    id: 'edit_custom_attribute',
+    title: t('ATTRIBUTES_MGMT.EDIT.TITLE'),
+    icon: 'i-lucide-pencil',
+    records: attributes.value,
+    label: attribute => attribute.attribute_display_name,
+    run: handleEditAttribute,
+  }),
+  ...recordCommands({
+    id: 'delete_custom_attribute',
+    title: t('COMMAND_BAR.COMMANDS.DELETE_CUSTOM_ATTRIBUTE'),
+    icon: 'i-lucide-trash-2',
+    records: attributes.value,
+    label: attribute => attribute.attribute_display_name,
+    run: handleDeleteAttribute,
+  }),
+]);
 </script>
 
 <template>
