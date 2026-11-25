@@ -6,6 +6,9 @@
 VERSION_CHECK_REASON = "the fork's version check also reads the fork's own releases (GitHub on CE, our hub on Pro), " \
                        'which the example does not stub'.freeze
 
+DEVISE5_REASON = 'Devise 5 on the fork takes the confirmation token in the call and keeps only its digest on the user, ' \
+                 'so the example compares an empty token; indica_facil/spec/mailers/devise proves the link'.freeze
+
 SUPERSEDED_UPSTREAM_EXAMPLES = {
   'spec/enterprise/jobs/enterprise/internal/check_new_versions_job_spec.rb' => {
     'updates the plan info' => "the fork's CE version check reads the fork's own releases, which the example does not stub",
@@ -15,6 +18,11 @@ SUPERSEDED_UPSTREAM_EXAMPLES = {
     'does not notify accounts when the status is unchanged' => VERSION_CHECK_REASON,
     'keeps the last known status when an older hub omits it' => VERSION_CHECK_REASON,
     'clears the status when hub returns null' => VERSION_CHECK_REASON
+  },
+  'spec/enterprise/mailers/devise_mailer_spec.rb' => {
+    'shows confirmation link' => DEVISE5_REASON,
+    'still shows confirmation link for email verification' => DEVISE5_REASON,
+    'shows confirmation link for email verification' => DEVISE5_REASON
   },
   'spec/enterprise/models/integrations/hook_spec.rb' => {
     'keeps monitor Slack channels when another integration is removed' =>

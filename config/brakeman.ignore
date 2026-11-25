@@ -5,7 +5,8 @@
     "A edicao paga tem 42 entradas e nao 40: ela tem a pasta indica_facil/, que esta edicao nao tem, e la ha dois achados a mais. Fora esses dois, as impressoes digitais sao as mesmas nas duas - o codigo e o mesmo.",
     "🔴 COMO MEDIR: rode o Brakeman contra a ARVORE INTEIRA. Medir so algumas pastas para economizar transferencia foi o que, na edicao paga, deixou dois achados de codigo proprio passarem na medicao local - eles sumiram do relatorio e sobraram para o CI achar.",
     "Nao acrescente entrada aqui sem escrever o motivo, e nao escreva motivo que voce nao verificou no codigo. A pergunta que pegou tres diagnosticos falsos neste projeto e: isso tambem aparece onde deu certo? E leia o arquivo INTEIRO antes de concluir: num destes achados, ler so um trecho fazia o portao de assinatura do Slack parecer quebrado quando nao esta.",
-    "PRAZO REVISAR-EM: 2026-11-07. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit). A data nasceu na nota do unico aviso real, o fim do suporte de seguranca do Rails 7.2; essa entrada saiu em 28/10/2026 porque o projeto ja esta no Rails 8.1.4 e o Brakeman a dava como obsoleta, e a data fica aqui como prazo de revisao de TODAS as notas desta lista. Nao estenda sem reler os motivos."
+    "PRAZO REVISAR-EM: 2026-12-26. O passo de prazo do CI falha sozinho quando essa data passar (no Pro ele vive no ci-lint.yml; no Free, no job Brakeman e bundle-audit). A data nasceu na nota do unico aviso real, o fim do suporte de seguranca do Rails 7.2; essa entrada saiu em 28/10/2026 porque o projeto ja esta no Rails 8.1.4 e o Brakeman a dava como obsoleta, e a data fica aqui como prazo de revisao de TODAS as notas desta lista. Nao estenda sem reler os motivos.",
+    "Revisado em 25/11/2026, na base 4.20.1: o Brakeman acusou UM aviso novo (o permit(:account_id) do work_preferences_params da base), que foi CORRIGIDO no codigo e nao ignorado (o account_id virou chave de busca, como no set_active_account); e deu como obsoleta a entrada do params.permit! da exportacao de contatos, que saiu daqui porque a base deixou de usa-lo. As demais notas foram relidas e seguem valendo."
   ],
   "ignored_warnings": [
     {
@@ -190,24 +191,6 @@
       "user_input": null,
       "confidence": "Medium",
       "note": "FALSO POSITIVO por ser a funcionalidade. custom_body_html, mesmo caso de custom_head_html: so admin grava, e e para isso que o campo existe."
-    },
-    {
-      "fingerprint": "31cd89f0af2f54aed328de79d7658691d3434075d9192880f0c7d5ac06f58b83",
-      "warning_type": "Mass Assignment",
-      "check_name": "MassAssignment",
-      "message": "Specify exact keys allowed for mass assignment instead of using `permit!` which allows any keys",
-      "file": "app/controllers/api/v1/accounts/contacts_controller.rb",
-      "line": 48,
-      "code": "params.permit!",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "Api::V1::Accounts::ContactsController",
-        "method": "export"
-      },
-      "user_input": null,
-      "confidence": "Medium",
-      "note": "FALSO POSITIVO. O permit! aqui e payload de FILTRO: segue para Contacts::FilterService, que tem a propria lista branca (a mesma cadeia verificada no achado de filter_service.rb:205)."
     },
     {
       "fingerprint": "4606e1e65bce2e0536310978bd181fac0e3e611ed38ca24ed56cf853e960e0fa",
