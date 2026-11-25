@@ -34,18 +34,11 @@
 # linha daqui. Nunca estender a data sem reler o motivo. E nunca deixar linha que já não é acusada:
 # foi assim que esta lista chegou a onze entradas mortas.
 
-ignore:
-  # rack-proxy 0.7.7 — GHSA-42qh-8mx8-7wqm
-  # Correção: >= 1.0.3. IMPOSSÍVEL hoje: a gem vem do `vite_rails`, e o `vite_ruby` exige
-  # `rack-proxy (~> 0.6, >= 0.6.1)` — ou seja, proíbe 1.x. Subir exige subir o vite_ruby primeiro.
-  # ⚠️ O título do aviso diz "in rack-proxy 1.x", e a versão instalada é 0.7.7: vale conferir, na
-  # revisão, se o alcance do aviso é largo demais e 0.x nunca teve o defeito.
-  # O que o rack-proxy serve aqui é o proxy do servidor de desenvolvimento do vite — conferir
-  # também se ele chega a ser carregado em produção.
-  # Revisado em 25/11/2026 (base 4.20.1): com a lista vazia, o bundle-audit acusa SO este aviso, e o
-  # vite_ruby segue exigindo rack-proxy ~> 0.6. No mesmo dia subiram rails 8.1.4.1, omniauth 2.4.2,
-  # rack-protection 4.2.2, msgpack 1.8.7 e puma 7.2.4, que fecharam os outros avisos sem ignorar nada.
-  - GHSA-42qh-8mx8-7wqm
+# ✅ 25/11/2026: a lista ficou VAZIA. A ultima entrada era o rack-proxy 0.7.7 (GHSA-42qh-8mx8-7wqm),
+# dado como "impossivel" porque o vite_ruby exigia rack-proxy ~> 0.6. O vite_ruby 3.10.6 aceita
+# >= 0.6.1, e subimos para o rack-proxy 1.0.3 (a versao do Chatwoot oficial 4.20.1). Medido: com a
+# lista vazia, o bundle-audit nao acusa nada. Aviso novo volta a entrar aqui, com motivo e prazo.
+ignore: []
 
   # ✅ AS DUAS ENTRADAS DO DEVISE SAÍRAM DAQUI EM 11/10/2026, e é assim que esta lista encolhe.
   #
