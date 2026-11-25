@@ -119,6 +119,13 @@
             "PLACEHOLDER": "Paste your Meta app's App Secret",
             "HELP": "In your app on developers.facebook.com, open App settings > Basic and copy the App secret. It confirms that each webhook really comes from Meta."
           }
+        },
+        "PROVIDER_BADGES": {
+          "RECOMMENDED": "Recommended for production",
+          "RECOMMENDED_DESCRIPTION": "The official WhatsApp API: the safe way to serve customers without risking the number being blocked.",
+          "HOMOLOGATION": "Testing",
+          "HOMOLOGATION_DESCRIPTION": "Unofficial connection, meant to test your setup. In production, use the official API.",
+          "NOTE": "Unofficial channels are for testing your setup. To serve customers in production, use the official WhatsApp API, so the number is not blocked and service does not stop."
         }
       }
     },

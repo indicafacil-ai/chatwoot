@@ -145,12 +145,14 @@ const PROVIDER_CATALOG = computed(() => [
       ? t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.WHATSAPP_CLOUD_MANUAL_SETUP_DESC')
       : t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.WHATSAPP_CLOUD_DESC'),
     icon: 'i-woot-whatsapp',
+    recommended: true,
   },
   {
     key: PROVIDER_TYPES.NATIVE,
     title: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.NATIVE'),
     description: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.NATIVE_DESC'),
     icon: 'i-woot-whatsapp-native',
+    homologation: true,
   },
   {
     key: PROVIDER_TYPES.TWILIO,
@@ -163,18 +165,21 @@ const PROVIDER_CATALOG = computed(() => [
     title: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.UAZAPI'),
     description: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.UAZAPI_DESC'),
     icon: 'i-woot-uazapi',
+    homologation: true,
   },
   {
     key: PROVIDER_TYPES.ZAPI,
     title: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.ZAPI'),
     description: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.ZAPI_DESC'),
     icon: 'i-woot-zapi',
+    homologation: true,
   },
   {
     key: PROVIDER_TYPES.BAILEYS,
     title: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.BAILEYS'),
     description: t('INBOX_MGMT.ADD.WHATSAPP.PROVIDERS.BAILEYS_DESC'),
     icon: 'i-woot-baileys',
+    homologation: true,
   },
   {
     key: PROVIDER_TYPES.THREE_SIXTY_DIALOG,
@@ -421,6 +426,12 @@ const requestEmbeddedSignupAccess = () => {
               : providerSelectionDescription
           }}
         </p>
+        <p
+          v-if="!isConvertMode"
+          class="mt-2 text-sm leading-relaxed text-n-slate-11"
+        >
+          {{ $t('INBOX_MGMT.ADD.WHATSAPP.PROVIDER_BADGES.NOTE') }}
+        </p>
       </div>
 
       <div
@@ -438,6 +449,8 @@ const requestEmbeddedSignupAccess = () => {
           :icon="provider.icon"
           :is-beta="isBetaProvider(provider.key)"
           :is-legacy="isLegacyProvider(provider.key)"
+          :is-homologation="Boolean(provider.homologation)"
+          :is-recommended="Boolean(provider.recommended)"
           :disabled="isUnavailableProvider(provider.key)"
           @click="selectProvider(provider.key)"
         />

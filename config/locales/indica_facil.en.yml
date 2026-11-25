@@ -204,6 +204,8 @@ en:
       avg_customer_waiting_time: Avg customer waiting time
       resolution_count: Resolution Count
   super_admin:
+    navigation:
+      console: Admin console
     instance_status:
       whatsapp_connector:
         label: 'WhatsApp (native) connector'

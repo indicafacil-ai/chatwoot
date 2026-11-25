@@ -119,6 +119,13 @@
             "PLACEHOLDER": "Pega la clave secreta de tu aplicación de Meta",
             "HELP": "En tu aplicación de developers.facebook.com, abre Configuración de la app > Básica y copia la Clave secreta de la app. Confirma que cada webhook viene realmente de Meta."
           }
+        },
+        "PROVIDER_BADGES": {
+          "RECOMMENDED": "Recomendado para producción",
+          "RECOMMENDED_DESCRIPTION": "La API oficial de WhatsApp: la forma segura de atender sin riesgo de bloqueo del número.",
+          "HOMOLOGATION": "Pruebas",
+          "HOMOLOGATION_DESCRIPTION": "Conexión no oficial, pensada para probar su estructura. En producción, use la API oficial.",
+          "NOTE": "Los canales no oficiales sirven para probar su estructura. Para atender clientes en producción, use la API oficial de WhatsApp, así el número no se bloquea y la atención no se interrumpe."
         }
       }
     },
