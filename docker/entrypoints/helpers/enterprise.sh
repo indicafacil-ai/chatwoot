@@ -105,7 +105,7 @@ intact() {
 # Reads the lock into VERSION and PINNED, and refuses one that does not belong to this image.
 read_lock() {
   [ -f "$LOCK_FILE" ] || fail "this image has no $LOCK_FILE, so there is no hash to check enterprise/ against"
-  VERSION=$(tr -d '[:space:]' < "$APP_ROOT/VERSION_CW")
+  VERSION=$(tr -d '[:space:]' < "$APP_ROOT/VERSION_CW" | sed 's/-indica-facil.*//')
   locked_version=$(sed -n 's/^version=//p' "$LOCK_FILE" | head -n 1)
   PINNED=$(sed -n 's/^sha256=//p' "$LOCK_FILE" | head -n 1)
   [ -n "$PINNED" ] || fail "$LOCK_FILE has no sha256"
@@ -157,7 +157,7 @@ cmd_tree_hash() {
 cmd_lock() {
   [ "$#" -eq 1 ] || fail "usage: enterprise.sh lock <out_dir>"
   out=$1
-  version=$(tr -d '[:space:]' < "$APP_ROOT/VERSION_CW")
+  version=$(tr -d '[:space:]' < "$APP_ROOT/VERSION_CW" | sed 's/-indica-facil.*//')
   [ -n "$version" ] || fail "VERSION_CW is empty"
   mkdir -p "$out"
   download_tree "$version" "$out" || fail "download of v$version failed"
