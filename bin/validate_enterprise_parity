@@ -11,7 +11,7 @@
 set -eu
 
 paths="enterprise spec/enterprise"
-tag="v$(cat VERSION_CW)"
+tag="v$(sed 's/-indica-facil.*//' VERSION_CW)"
 
 if [ "${1:-}" = "--staged" ]; then
   git rev-parse -q --verify MERGE_HEAD >/dev/null && exit 0

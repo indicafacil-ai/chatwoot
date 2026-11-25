@@ -23,7 +23,7 @@ jobs:
 
       - name: Fetch the upstream release this branch tracks
         run: |
-          tag="v$(cat VERSION_CW)"
+          tag="v$(sed 's/-indica-facil.*//' VERSION_CW)"
           git fetch --no-tags --depth=1 https://github.com/chatwoot/chatwoot.git "refs/tags/$tag:refs/tags/$tag"
 
       - name: Compare enterprise/ and spec/enterprise/ with it
