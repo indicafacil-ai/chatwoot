@@ -48,6 +48,7 @@ class Channel::Whatsapp < ApplicationRecord # rubocop:disable Metrics/ClassLengt
   NEW_CHAT_CAP_KEYS = %w[capping_status ote_status mv_status total_quota used_quota cycle_start_timestamp cycle_end_timestamp].freeze
   before_validation :ensure_webhook_verify_token
   before_validation :keep_app_secret, if: -> { provider.in?(%w[whatsapp_cloud default]) }
+  before_validation :ensure_webhook_token
 
   validates :provider, inclusion: { in: PROVIDERS }
   validates :phone_number, presence: true, uniqueness: true
@@ -77,29 +78,6 @@ class Channel::Whatsapp < ApplicationRecord # rubocop:disable Metrics/ClassLengt
     voice_calling_supported? &&
       provider_config['calling_enabled'].present? &&
       account.feature_enabled?('channel_voice')
-  end
-
-  # Where a voice agent takes this inbox's calls: the connector carries the call's voice to this
-  # WebSocket instead of to an agent's browser. Nil when no voice agent answers them. Both halves
-  # are written by iDagent (Api::V1::Accounts::WhatsappAiVoiceController).
-  def ai_voice_stream_url
-    config = provider_config['ai_voice']
-    return unless config.is_a?(Hash) && config['enabled'] == true
-
-    config['stream_url'].presence
-  end
-
-  # Writes the switch, and the URL when one is given, without touching the rest of
-  # provider_config. Saved without validations, as the calling toggles are, so the provider's
-  # credential re-check cannot refuse it; and saved, not written past the callbacks, so the
-  # inbox cache is invalidated: a dashboard holding the old provider_config would write it back
-  # whole on its next settings save.
-  def update_ai_voice!(enabled:, stream_url: nil)
-    current = provider_config['ai_voice'].is_a?(Hash) ? provider_config['ai_voice'] : {}
-    current = current.merge('enabled' => enabled)
-    current['stream_url'] = stream_url if stream_url.present?
-    self.provider_config = provider_config.merge('ai_voice' => current)
-    save!(validate: false)
   end
 
   # Mutes only the incoming side of calling; default on, so only an explicit false disables inbound.
@@ -177,6 +155,10 @@ class Channel::Whatsapp < ApplicationRecord # rubocop:disable Metrics/ClassLengt
   def embedded_to_manual_transfer_pending?
     before, after = provider_config_change
     before&.dig('source') == 'embedded_signup' && after['source'] != 'embedded_signup'
+  end
+
+  def app_secret_pending?
+    manual_cloud_setup? && provider_config['app_secret'].blank?
   end
 
   def mark_message_templates_updated
@@ -450,7 +432,11 @@ class Channel::Whatsapp < ApplicationRecord # rubocop:disable Metrics/ClassLengt
     provider_service.sync_group(conversation, soft: soft)
   end
 
+  # Only Baileys and the session providers manage groups. Every inbox payload asks, and building any
+  # other provider's service for a constant no is work the payload does not need.
   def allow_group_creation?
+    return false unless provider == 'baileys' || session_provider?
+
     provider_service.respond_to?(:allow_group_creation?) && provider_service.allow_group_creation?
   end
 
@@ -651,11 +637,28 @@ class Channel::Whatsapp < ApplicationRecord # rubocop:disable Metrics/ClassLengt
   # A check that could not reach a verdict is neither a refusal nor a broken application, so it gets a
   # sentence of its own. Only that one class is rescued: a defect of ours inside the check escapes as
   # itself, because telling the operator to try again is no use when the thing to fix is the code.
+  def ensure_webhook_token
+    return unless provider == 'default'
+
+    # Derived for existing channels so concurrent saves register the same token with 360dialog.
+    provider_config['webhook_token'] ||= if new_record?
+                                           SecureRandom.hex(16)
+                                         else
+                                           OpenSSL::HMAC.hexdigest('SHA256', Rails.application.secret_key_base, "whatsapp_webhook_token:#{id}")
+                                         end
+  end
+
   def validate_provider_config
+    return if errors.any?
+
     errors.add(:provider_config, 'Invalid Credentials') unless provider_service.validate_provider_config?
   rescue Whatsapp::CredentialCheck::Unavailable => e
     Rails.logger.warn("[WHATSAPP] Credential check could not be completed for #{provider} channel #{id || 'new'}: #{e.message}")
     errors.add(:provider_config, I18n.t('errors.inboxes.channel.credential_check_unavailable'))
+  end
+
+  def manual_cloud_setup?
+    provider == 'whatsapp_cloud' && provider_config['source'] != 'embedded_signup'
   end
 
   # Logs only the embedded signup → manual migration (the save drops the

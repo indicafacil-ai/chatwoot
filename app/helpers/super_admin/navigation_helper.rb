@@ -22,7 +22,7 @@ module SuperAdmin::NavigationHelper
 
   # Heading each feature's page sits under in the settings list. Pages not listed stay at the top.
   SETTINGS_GROUPS = {
-    'super_admin.navigation.settings_groups.product' => %w[saml custom_branding captain],
+    'super_admin.navigation.settings_groups.product' => %w[saml custom_branding branding captain],
     'super_admin.navigation.settings_groups.channels' => %w[email messenger instagram tiktok],
     'super_admin.navigation.settings_groups.authentication' => %w[google microsoft],
     'super_admin.navigation.settings_groups.integrations' => %w[stripe linear notion slack whatsapp_embedded shopify]

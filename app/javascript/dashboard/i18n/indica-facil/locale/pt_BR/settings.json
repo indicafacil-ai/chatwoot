@@ -20,7 +20,8 @@
           "LABEL": "Separador da assinatura",
           "OPTIONS": {
             "BLANK": "Linha em branco",
-            "HORIZONTAL_LINE": "Linha horizontal (--)"
+            "HORIZONTAL_LINE": "Linha horizontal (--)",
+            "NONE": "Sem linha em branco"
           }
         },
         "PREVIEW": {
@@ -46,7 +47,10 @@
     },
     "MEDIA": {
       "AUDIO_UNAVAILABLE": "Este áudio não está mais disponível.",
-      "VIDEO_UNAVAILABLE": "Este vídeo não está mais disponível."
+      "VIDEO_UNAVAILABLE": "Este vídeo não está mais disponível.",
+      "PLAY_VIDEO_NOTE": "Reproduzir vídeo recado",
+      "PAUSE_VIDEO_NOTE": "Pausar vídeo recado",
+      "OPEN_VIDEO_NOTE": "Abrir vídeo recado"
     }
   },
   "SIDEBAR": {

@@ -58,6 +58,7 @@ module Redis::RedisKeys
   # SSO Auth Tokens
   USER_SSO_AUTH_TOKEN = 'USER_SSO_AUTH_TOKEN::%<user_id>d::%<token>s'.freeze
   USER_SSO_IMPERSONATOR = 'USER_SSO_IMPERSONATOR::%<user_id>d::%<token>s'.freeze
+  SUPER_ADMIN_MFA_FAILED_ATTEMPTS = 'SUPER_ADMIN_MFA_FAILED_ATTEMPTS::%<user_id>d'.freeze
 
   ## Online Status Keys
   # hash containing user_id key and status as value
@@ -81,15 +82,6 @@ module Redis::RedisKeys
   OPENAI_CONVERSATION_KEY = 'OPEN_AI_CONVERSATION_KEY::V1::%<event_name>s::%<conversation_id>d::%<updated_at>d'.freeze
   # Bridges a WhatsApp call `terminate` that overtook its `connect` so the later connect can finalize it.
   WHATSAPP_CALL_TERMINATE_TOMBSTONE = 'WHATSAPP_CALL_TERMINATE_TOMBSTONE::%<call_id>s'.freeze
-  # The connector's call commands that answer nothing, by command id, until a failure could still come back for them.
-  WHATSAPP_CONNECTOR_CALL_COMMAND = 'WHATSAPP_CONNECTOR_CALL_COMMAND::%<command_id>s'.freeze
-  # A native inbox whose calling was turned on or off while its pairing was still under way.
-  WHATSAPP_CONNECTOR_CALL_POLICY_PENDING = 'WHATSAPP_CONNECTOR_CALL_POLICY_PENDING::%<channel_id>s'.freeze
-  # A connector call event that arrived before the Call it is about was recorded.
-  WHATSAPP_CONNECTOR_CALL_PENDING = 'WHATSAPP_CONNECTOR_CALL_PENDING::%<inbox_id>s::%<call_id>s::%<kind>s'.freeze
-  # A native channel dialling this phone through Chatwoot, while its call.start is out. One
-  # key per dialler, so two dialling the same number at once do not erase each other.
-  WHATSAPP_CONNECTOR_CALL_DIALING = 'WHATSAPP_CONNECTOR_CALL_DIALING::%<phone>s::%<channel_id>s'.freeze
   # The provider message ids this app has just acknowledged to WhatsApp, per conversation, so the
   # provider's echo of that receipt is not read back as a device of this account opening the chat.
   WHATSAPP_SELF_READ_RECEIPT = 'WHATSAPP_SELF_READ_RECEIPT::%<conversation_id>s::%<source_id>s'.freeze
@@ -153,4 +145,8 @@ module Redis::RedisKeys
   CAPTAIN_EMAIL_VERIFICATION_EMAIL_SENDS = 'CAPTAIN::EMAIL_VERIFICATION::EMAIL_SENDS::%<email_digest>s'.freeze
   # Email address verified in the conversation
   CAPTAIN_EMAIL_VERIFICATION_VERIFIED = 'CAPTAIN::EMAIL_VERIFICATION::VERIFIED::%<conversation_id>d'.freeze
+
+  ## Captain MCP servers
+  # MCP server an OAuth sign-in started for, keyed by the OAuth state, so the callback finds the server
+  CAPTAIN_MCP_OAUTH_STATE = 'CAPTAIN::MCP::OAUTH_STATE::%<state>s'.freeze
 end

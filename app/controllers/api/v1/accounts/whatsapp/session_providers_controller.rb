@@ -10,7 +10,7 @@ class Api::V1::Accounts::Whatsapp::SessionProvidersController < Api::V1::Account
   # are described too, so an existing inbox can be labelled and gated without the
   # dashboard carrying a provider name of its own.
   def index
-    render json: { payload: session_descriptors.map { |d| d.to_h.merge('creatable' => creatable?(d)) } }
+    render json: { payload: session_descriptors.map { |d| d.to_h.merge('creatable' => creatable?(d)).merge(unavailability(d)) } }
   end
 
   private
@@ -28,11 +28,29 @@ class Api::V1::Accounts::Whatsapp::SessionProvidersController < Api::V1::Account
   # serves theirs, so it does not apply to them. Withdrawing them ahead of the removal is
   # then one env var on this line rather than a dashboard change.
   def creatable?(descriptor)
-    return Whatsapp::Session::Registry.legacy_creatable? if descriptor.legacy?
+    return Whatsapp::Session::Registry.legacy_creatable? && legacy_installed?(descriptor) if descriptor.legacy?
     return false unless descriptor.available?
     return false unless connector_running?(descriptor)
 
     Current.account.whatsapp_session_provider_enabled?(descriptor.key)
+  end
+
+  # A native inbox that only lacks a running connector is shown disabled rather than left
+  # out, with why: the administrator who opens the picker is rarely the one who can start
+  # it, and an option that silently vanishes reads as a feature this installation lacks.
+  # The detail is the reason the helper published for the last failed start, when there
+  # is one.
+  def unavailability(descriptor)
+    return {} unless descriptor.key == 'native' && descriptor.available? && !connector_running?(descriptor)
+    return {} unless Current.account.whatsapp_session_provider_enabled?(descriptor.key)
+
+    { 'unavailable_reason' => 'connector_not_running', 'unavailable_detail' => last_start_error }
+  end
+
+  def last_start_error
+    Whatsapp::Connector::Status.new.last_start_error
+  rescue Whatsapp::Session::Errors::ProviderUnavailable
+    nil
   end
 
   # On by default is not the same as started: the Docker image runs the connector next to
@@ -41,9 +59,22 @@ class Api::V1::Accounts::Whatsapp::SessionProvidersController < Api::V1::Account
   # Saving an inbox does not: a connector restarting must not stop an inbox being edited.
   def connector_running?(descriptor)
     return true unless descriptor.key == 'native'
+    return @connector_running if defined?(@connector_running)
 
-    Whatsapp::Connector::Client.new(nil).available?
-  rescue Whatsapp::Session::Errors::ProviderUnavailable
-    false
+    @connector_running = begin
+      Whatsapp::Connector::Client.new(nil).available?
+    rescue Whatsapp::Session::Errors::ProviderUnavailable
+      false
+    end
+  end
+
+  # Baileys runs as a separate API that the installation points at. One that never set
+  # it up, or whose API is gone, has no use for it, and a legacy provider is not
+  # something to introduce. Like the connector check, this gates the picker only: an
+  # existing Baileys inbox keeps saving while its API restarts.
+  def legacy_installed?(descriptor)
+    return true unless descriptor.key == 'baileys'
+
+    Whatsapp::Providers::WhatsappBaileysService.installed?
   end
 end

@@ -31,6 +31,8 @@ import { domPurifyConfig } from 'shared/helpers/HTMLSanitizer.js';
 
 import { vResizeObserver } from '@vueuse/components';
 import { directive as onClickaway } from 'vue3-click-away';
+import { bindDateLocale } from 'shared/helpers/localizedDate';
+import { bindDatePickerLocale } from 'dashboard/helper/datePickerLocale';
 
 import 'floating-vue/dist/style.css';
 import '@chatwoot/viz/style.css';
@@ -41,7 +43,10 @@ const i18n = createI18n({
   // Resolve the %BRAND% sentinel before vue-i18n compiles the messages, so the
   // dashboard names the installation instead of naming Chatwoot.
   messages: applyBrand(i18nMessages, window.globalConfig?.INSTALLATION_NAME),
+  fallbackLocale: 'en',
 });
+bindDateLocale(i18n);
+bindDatePickerLocale();
 
 sync(store, router);
 

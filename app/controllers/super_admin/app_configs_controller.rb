@@ -1,7 +1,13 @@
 class SuperAdmin::AppConfigsController < SuperAdmin::ApplicationController
   GENERAL_CONFIGS = %w[ENABLE_ACCOUNT_SIGNUP FIREBASE_PROJECT_ID FIREBASE_CREDENTIALS WEBHOOK_TIMEOUT MAXIMUM_FILE_UPLOAD_SIZE
-                       WIDGET_TOKEN_EXPIRY].freeze
+                       WIDGET_TOKEN_EXPIRY MESSAGE_SEARCH_MIN_QUERY_LENGTH MOBILE_APP_MIN_IOS_VERSION
+                       MOBILE_APP_MIN_ANDROID_VERSION].freeze
   META_INCIDENT_CONFIGS = %w[DISABLE_META_INBOX_CREATION DISABLE_META_MESSAGE_SENDING].freeze
+  INSTAGRAM_CONFIGS = %w[
+    INSTAGRAM_LOGIN_METHOD INSTAGRAM_APP_NAME INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET
+    INSTAGRAM_UNIFIED_APP_NAME INSTAGRAM_UNIFIED_APP_ID INSTAGRAM_UNIFIED_APP_SECRET INSTAGRAM_CONFIGURATION_ID
+    INSTAGRAM_VERIFY_TOKEN INSTAGRAM_API_VERSION ENABLE_INSTAGRAM_CHANNEL_HUMAN_AGENT
+  ].freeze
   SHOPIFY_CONFIGS = %w[
     ENABLE_SHOPIFY_INTEGRATION
     SHOPIFY_CLIENT_ID
@@ -12,6 +18,7 @@ class SuperAdmin::AppConfigsController < SuperAdmin::ApplicationController
     SHOPIFY_PARTNER_ACCESS_TOKEN
     SHOPIFY_PARTNER_API_VERSION
   ].freeze
+  NON_NEGATIVE_INTEGER_FORMAT = /\A\d+\z/
 
   before_action :set_config
   before_action :allowed_configs
@@ -23,13 +30,14 @@ class SuperAdmin::AppConfigsController < SuperAdmin::ApplicationController
                                     .map { |name, serialized_value| [name, serialized_value['value']] }
                                     .to_h
     # rubocop:enable Style/HashTransformValues
+    @app_config['INSTAGRAM_LOGIN_METHOD'] = Instagram::LoginConfiguration.login_method if @config == 'instagram'
     @installation_configs = ConfigLoader.new.general_configs.each_with_object({}) do |config_hash, result|
       result[config_hash['name']] = config_hash.except('name')
     end
   end
 
   def create
-    errors = shopify_partner_config_errors + stripe_config_errors
+    errors = submitted_config_errors
     params['app_config'].each do |key, value|
       break if errors.any?
       next unless @allowed_configs.include?(key)
@@ -44,12 +52,25 @@ class SuperAdmin::AppConfigsController < SuperAdmin::ApplicationController
 
   private
 
+  def submitted_config_errors
+    shopify_partner_config_errors + stripe_config_errors + message_search_config_errors
+  end
+
   def stripe_config_errors
     return [] unless @config == 'stripe'
 
     values = InstallationConfig.where(name: @allowed_configs).to_h { |config| [config.name, config.value] }
     values.merge!(params.fetch('app_config', {}).permit(*@allowed_configs).to_h)
     Integrations::Stripe::Oauth.configuration_errors(url: values['STRIPE_APP_AUTHORIZE_URL'], key: values['STRIPE_APP_SECRET_KEY'])
+  end
+
+  # SearchService reads the minimum with to_i and the dashboard with parseInt, so anything but a
+  # whole number would be read differently on each side. Blank means no minimum.
+  def message_search_config_errors
+    value = params.dig('app_config', 'MESSAGE_SEARCH_MIN_QUERY_LENGTH')
+    return [] if value.blank? || value.to_s.strip.match?(NON_NEGATIVE_INTEGER_FORMAT)
+
+    [I18n.t('super_admin.app_configs.general.invalid_message_search_min_query_length')]
   end
 
   def set_config
@@ -67,7 +88,7 @@ class SuperAdmin::AppConfigsController < SuperAdmin::ApplicationController
       'linear' => %w[LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET],
       'stripe' => %w[STRIPE_APP_AUTHORIZE_URL STRIPE_APP_SECRET_KEY STRIPE_APP_WEBHOOK_SECRET],
       'slack' => %w[SLACK_CLIENT_ID SLACK_CLIENT_SECRET SLACK_SIGNING_SECRET],
-      'instagram' => %w[INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET INSTAGRAM_VERIFY_TOKEN INSTAGRAM_API_VERSION ENABLE_INSTAGRAM_CHANNEL_HUMAN_AGENT],
+      'instagram' => INSTAGRAM_CONFIGS,
       'tiktok' => %w[TIKTOK_APP_ID TIKTOK_APP_SECRET TIKTOK_API_VERSION],
       'whatsapp_embedded' => %w[WHATSAPP_APP_ID WHATSAPP_APP_SECRET WHATSAPP_CONFIGURATION_ID WHATSAPP_API_VERSION],
       'notion' => %w[NOTION_CLIENT_ID NOTION_CLIENT_SECRET],

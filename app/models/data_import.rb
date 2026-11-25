@@ -49,7 +49,8 @@ class DataImport < ApplicationRecord
   has_many :mappings, class_name: 'DataImportMapping', dependent: :destroy_async
   has_many :import_errors, class_name: 'DataImportError', dependent: :destroy_async
 
-  validates :data_type, inclusion: { in: LEGACY_DATA_TYPES + INTEGRATION_DATA_TYPES, message: I18n.t('errors.data_import.data_type.invalid') }
+  validates :data_type, inclusion: { in: LEGACY_DATA_TYPES + INTEGRATION_DATA_TYPES,
+                                     message: ->(*) { I18n.t('errors.data_import.data_type.invalid') } }
   validates :access_token, presence: true, on: :create, if: :integration_import?
   validate :validate_import_types
   validate :validate_integration_provider
@@ -60,6 +61,11 @@ class DataImport < ApplicationRecord
   scope :active_integrations, lambda {
     where(data_type: INTEGRATION_DATA_TYPES, status: [:pending, :processing]).where('source_provider = data_type')
   }
+  scope :active_imports, lambda {
+    active_integrations
+      .or(where(data_type: 'contacts', source_provider: 'csv', source_type: 'file', status: [:pending, :processing]))
+      .or(where(data_type: 'contacts', source_provider: [nil, ''], status: [:pending, :processing]))
+  }
 
   has_one_attached :import_file
   has_one_attached :failed_records
@@ -69,6 +75,18 @@ class DataImport < ApplicationRecord
 
   def legacy_contacts_csv_import?
     data_type == 'contacts' && source_provider.blank?
+  end
+
+  def csv_import?
+    data_type == 'contacts' && source_provider == 'csv' && source_type == 'file'
+  end
+
+  def managed_import?
+    integration_import? || csv_import?
+  end
+
+  def source_available?
+    csv_import? ? import_file.attached? && source_metadata['artifacts_expired_at'].blank? : access_token.present?
   end
 
   def intercom_import?
@@ -88,19 +106,15 @@ class DataImport < ApplicationRecord
   end
 
   def stalled?
-    integration_import? && (pending? || processing?) && updated_at <= IMPORT_STALLED_AFTER.ago
+    managed_import? && (pending? || processing?) && updated_at <= IMPORT_STALLED_AFTER.ago
   end
 
   def abandonable?
-    integration_import? && (pending? || processing?)
+    (pending? || processing?) && (managed_import? || (legacy_contacts_csv_import? && updated_at <= IMPORT_STALLED_AFTER.ago))
   end
 
   def abandon!
-    self.class.transaction do
-      active_imports = self.class.lock.where(id: id, data_type: INTEGRATION_DATA_TYPES, status: [:pending, :processing])
-      abandonable_import = active_imports.where('source_provider = data_type').first
-      abandonable_import&.update!(status: :abandoned, abandoned_at: Time.current)
-    end
+    with_lock { update!(status: :abandoned, abandoned_at: Time.current) if abandonable? }
     reload
   end
 
@@ -139,6 +153,10 @@ class DataImport < ApplicationRecord
   end
 
   def validate_import_types
+    if csv_import? && import_types != ['contacts']
+      errors.add(:import_types, 'must contain only contacts for a CSV import')
+      return
+    end
     return if import_types.blank?
 
     invalid_types = import_types - IMPORT_TYPES

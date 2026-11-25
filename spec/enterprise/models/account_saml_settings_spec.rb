@@ -66,15 +66,11 @@ RSpec.describe AccountSamlSettings, type: :model do
   end
 
   describe 'sp_entity_id auto-generation' do
-    # Built from FRONTEND_URL, so asserting the fallback would only pass where nobody set
-    # one. Name the value instead: any dev machine with a .env has FRONTEND_URL set.
     it 'automatically generates sp_entity_id when creating' do
-      with_modified_env FRONTEND_URL: 'https://chat.example.com' do
-        settings = build(:account_saml_settings, account: account, sp_entity_id: nil)
-        expect(settings).to be_valid
-        settings.save!
-        expect(settings.sp_entity_id).to eq("https://chat.example.com/saml/sp/#{account.id}")
-      end
+      settings = build(:account_saml_settings, account: account, sp_entity_id: nil)
+      expect(settings).to be_valid
+      settings.save!
+      expect(settings.sp_entity_id).to eq("http://localhost:3000/saml/sp/#{account.id}")
     end
 
     it 'does not override existing sp_entity_id' do
@@ -290,6 +286,23 @@ RSpec.describe AccountSamlSettings, type: :model do
     end
   end
 
+  describe '#trusts_identity_provider_of?' do
+    let(:settings) { create(:account_saml_settings, account: account) }
+    let(:rotated_certificate) { build(:account_saml_settings).certificate }
+
+    it 'trusts settings whose certificates it also trusts' do
+      other = create(:account_saml_settings, certificate: "#{settings.certificate}\n#{rotated_certificate}")
+
+      expect(other.trusts_identity_provider_of?(settings)).to be(true)
+    end
+
+    it 'does not trust settings with a certificate it does not trust' do
+      other = create(:account_saml_settings, certificate: "#{settings.certificate}\n#{rotated_certificate}")
+
+      expect(settings.trusts_identity_provider_of?(other)).to be(false)
+    end
+  end
+
   describe 'callbacks' do
     describe 'after_create_commit' do
       it 'queues job to set account users to saml provider' do
@@ -302,7 +315,7 @@ RSpec.describe AccountSamlSettings, type: :model do
       it 'queues job to reset account users provider' do
         settings = create(:account_saml_settings, account: account)
         expect(Saml::UpdateAccountUsersProviderJob).to receive(:perform_later).with(account.id, 'email')
-        settings.destroy!
+        settings.destroy
       end
     end
   end

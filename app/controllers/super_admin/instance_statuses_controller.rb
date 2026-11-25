@@ -83,6 +83,7 @@ class SuperAdmin::InstanceStatusesController < SuperAdmin::ApplicationController
     @metrics['Redis alive'] = false
   end
 
+  # We keep the Baileys API as the testing channel, so the health page still shows its version.
   def baileys_api_version
     @metrics['Baileys API version'] = Whatsapp::Providers::WhatsappBaileysService.status[:packageInfo][:version]
   rescue Whatsapp::Session::Errors::ProviderUnavailable => e

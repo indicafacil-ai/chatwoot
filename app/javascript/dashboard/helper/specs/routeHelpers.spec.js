@@ -166,6 +166,81 @@ describe('#validateLoggedInRoutes', () => {
           ).toEqual(`accounts/1/dashboard`);
         });
       });
+      describe('when route is gated only by a feature', () => {
+        const route = {
+          name: 'kanban_list',
+          params: { accountId: 1 },
+          meta: { featureAccess: 'kanban.access' },
+        };
+        const userWith = (permissions, featureAccess) => ({
+          accounts: [
+            {
+              id: 1,
+              role: 'agent',
+              permissions,
+              feature_access: featureAccess,
+              status: 'active',
+            },
+          ],
+        });
+
+        it('lets a member with the feature in, whatever native permissions it carries', () => {
+          expect(
+            validateLoggedInRoutes(
+              route,
+              userWith(['custom_role'], ['kanban.access'])
+            )
+          ).toBeNull();
+        });
+
+        it('turns away a member without the feature', () => {
+          expect(
+            validateLoggedInRoutes(route, userWith(['agent'], []))
+          ).toEqual('accounts/1/dashboard');
+        });
+      });
+
+      describe('when route needs a feature the member may not use', () => {
+        const route = {
+          name: 'internal_chat_home',
+          params: { accountId: 1 },
+          meta: {
+            permissions: ['agent'],
+            featureAccess: 'internal_chat.access',
+          },
+        };
+        const userWith = featureAccess => ({
+          accounts: [
+            {
+              id: 1,
+              role: 'agent',
+              permissions: ['agent'],
+              feature_access: featureAccess,
+              status: 'active',
+            },
+          ],
+        });
+
+        it('returns dashboard url without the feature', () => {
+          expect(validateLoggedInRoutes(route, userWith([]))).toEqual(
+            'accounts/1/dashboard'
+          );
+        });
+
+        it('returns null with the feature', () => {
+          expect(
+            validateLoggedInRoutes(route, userWith(['internal_chat.access']))
+          ).toBeNull();
+        });
+
+        it('returns dashboard url with the feature but not the permission', () => {
+          const user = userWith(['internal_chat.access']);
+          user.accounts[0].permissions = ['custom_role'];
+          expect(validateLoggedInRoutes(route, user)).toEqual(
+            'accounts/1/dashboard'
+          );
+        });
+      });
       describe('when route is suspended route', () => {
         it('returns dashboard url', () => {
           expect(

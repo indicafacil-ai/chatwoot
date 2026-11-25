@@ -80,6 +80,35 @@ RSpec.describe 'Unproven contact merge on public channels', type: :request do
     end
   end
 
+  describe 'additional attributes the system reads as its own' do
+    before do
+      visitor.update!(additional_attributes: { 'external' => { 'leadsquared_id' => 'visitor-lead' } })
+    end
+
+    it 'ignores claims and CRM ids sent by the visitor and keeps the rest' do
+      patch '/api/v1/widget/contact', params: {
+        website_token: web_widget.website_token,
+        additional_attributes: { city: 'Recife', claimed_email: 'customer@example.com', external: { leadsquared_id: 'customer-lead' } }
+      }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:success)
+      attributes = visitor.reload.additional_attributes
+      expect(attributes['city']).to eq('Recife')
+      expect(attributes).not_to have_key('claimed_email')
+      expect(attributes['external']).to eq('leadsquared_id' => 'visitor-lead')
+    end
+
+    it 'ignores them on setUser too' do
+      patch '/api/v1/widget/contact/set_user', params: {
+        website_token: web_widget.website_token, identifier: 'visitor-on-site',
+        additional_attributes: { claimed_phone_number: '+5511988887777' }
+      }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(visitor.reload.additional_attributes).not_to have_key('claimed_phone_number')
+    end
+  end
+
   describe 'PATCH /api/v1/widget/contact/set_user' do
     let(:identifier) { 'visitor-on-the-site' }
 
@@ -201,6 +230,129 @@ RSpec.describe 'Unproven contact merge on public channels', type: :request do
       expect(response).to have_http_status(:success)
       expect(session.reload.contact_id).to eq(visitor.id)
       expect(customer_conversation.reload.contact_id).to eq(customer.id)
+    end
+  end
+
+  # Our rule, not upstream's: a phone number nobody holds yet is saved on the contact, because the
+  # website's pre-chat form asks it so the agent bot does not ask again. Only a number that already
+  # belongs to someone else is held back (see the takeover examples above).
+  describe 'a phone number nobody holds yet' do
+    let(:free_phone) { '+5511977776666' }
+
+    it 'is saved on the widget contact update' do
+      patch '/api/v1/widget/contact', params: { website_token: web_widget.website_token, phone_number: free_phone },
+                                      headers: headers, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(visitor.reload.phone_number).to eq(free_phone)
+      expect(visitor.additional_attributes).not_to have_key('claimed_phone_number')
+    end
+
+    it 'is saved from the pre-chat form' do
+      post '/api/v1/widget/conversations',
+           params: { website_token: web_widget.website_token, contact: { name: 'Someone', phone_number: free_phone },
+                     message: { content: 'hi' } },
+           headers: headers, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(visitor.reload.phone_number).to eq(free_phone)
+      expect(visitor.additional_attributes).not_to have_key('claimed_phone_number')
+    end
+
+    it 'is saved on a new public API session' do
+      post "/public/api/v1/inboxes/#{api_channel.identifier}/contacts", params: { phone_number: free_phone }
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['phone_number']).to eq(free_phone)
+    end
+
+    it 'records no claim for a value that is not a phone number' do
+      patch '/api/v1/widget/contact', params: { website_token: web_widget.website_token, phone_number: '12345' },
+                                      headers: headers, as: :json
+
+      expect(visitor.reload.additional_attributes).not_to have_key('claimed_phone_number')
+    end
+
+    it 'records no claim for the phone number the contact already has' do
+      visitor.update!(phone_number: free_phone)
+      patch '/api/v1/widget/contact', params: { website_token: web_widget.website_token, phone_number: free_phone },
+                                      headers: headers, as: :json
+
+      expect(visitor.reload.phone_number).to eq(free_phone)
+      expect(visitor.additional_attributes).not_to have_key('claimed_phone_number')
+    end
+  end
+
+  # WhatsApp contacts carry "<lid>@lid" (and group JIDs) as their identifier. On an inbox where HMAC
+  # is optional, an unsigned identifier finds its contact, so a visitor who knows someone's LID would
+  # reach their WhatsApp contact. No site identifies its users that way.
+  describe 'an identifier in the format WhatsApp uses' do
+    let!(:whatsapp_contact) { create(:contact, account: account, identifier: '123456789012345@lid', phone_number: '+5511955554444') }
+
+    %w[123456789012345@lid 5511955554444@s.whatsapp.net 120363000000000000@g.us].each do |identifier|
+      it "is refused by setUser (#{identifier.split('@').last})" do
+        patch '/api/v1/widget/contact/set_user',
+              params: { website_token: web_widget.website_token, identifier: identifier }, headers: headers, as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(visitor_session.reload.contact_id).to eq(visitor.id)
+        expect(whatsapp_contact.reload.contact_inboxes.where(inbox: web_widget.inbox)).to be_empty
+      end
+    end
+
+    it 'is refused by the widget contact update' do
+      patch '/api/v1/widget/contact', params: { website_token: web_widget.website_token, identifier: whatsapp_contact.identifier },
+                                      headers: headers, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(visitor_session.reload.contact_id).to eq(visitor.id)
+    end
+
+    it 'is refused by setUser even with a valid hash' do
+      identifier_hash = OpenSSL::HMAC.hexdigest('sha256', web_widget.hmac_token, whatsapp_contact.identifier)
+      patch '/api/v1/widget/contact/set_user',
+            params: { website_token: web_widget.website_token, identifier: whatsapp_contact.identifier, identifier_hash: identifier_hash },
+            headers: headers, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'is refused by the public API' do
+      post "/public/api/v1/inboxes/#{api_channel.identifier}/contacts", params: { identifier: whatsapp_contact.identifier }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(whatsapp_contact.reload.contact_inboxes.where(inbox: api_inbox)).to be_empty
+    end
+  end
+
+  it 'answers 401, not 500, to a public API request without the hash an inbox requires' do
+    api_channel.update!(hmac_mandatory: true)
+    post "/public/api/v1/inboxes/#{api_channel.identifier}/contacts", params: { identifier: 'customer-42' }
+
+    expect(response).to have_http_status(:unauthorized)
+  end
+
+  # Upstream turns these into a private note that points the agent at the contact the visitor's
+  # value belongs to (Conversations::UnverifiedContactNoteService).
+  describe 'the unverified matches handed to upstream' do
+    def identify(params)
+      action = ContactIdentifyAction.new(contact: visitor, params: params)
+      UnprovenContactMergeGuard.unproven { action.perform }
+      action
+    end
+
+    it 'names the contact that holds the typed phone number' do
+      action = identify(phone_number: customer.phone_number)
+
+      expect(action.unverified_matches).to eq([{ key: :phone_number, value: customer.phone_number, contact: customer }])
+    end
+
+    it 'names nobody for a phone number no contact holds, and saves it on the contact' do
+      action = identify(phone_number: '+5511988887777')
+
+      expect(action.unverified_matches).to be_empty
+      expect(visitor.reload.phone_number).to eq('+5511988887777')
+      expect(visitor.additional_attributes).not_to have_key('claimed_phone_number')
     end
   end
 end

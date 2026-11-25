@@ -1,10 +1,10 @@
 module Enterprise::Whatsapp::Providers::WhatsappCloudService
-  include Whatsapp::GraphRequestOptions
-
   # Calls API + the call_permission_request interactive message both require Graph
   # API v17+; OSS phone_id_path is locked at v13.0 for legacy /messages compatibility.
   # Use the configured global version (defaulting to v22.0) for call-flow endpoints.
   WHATSAPP_CALLING_API_VERSION_FALLBACK = 'v22.0'.freeze
+
+  include Enterprise::Whatsapp::Providers::WhatsappCloudCallSettings
 
   def pre_accept_call(call_id, sdp_answer)
     call_api('pre_accept_call', call_action_body(call_id, 'pre_accept', sdp_answer))
@@ -24,8 +24,7 @@ module Enterprise::Whatsapp::Providers::WhatsappCloudService
 
   def send_call_permission_request(recipient, body_text = I18n.t('conversations.messages.whatsapp.call_permission_request_body'))
     response = HTTParty.post(
-      "#{calls_phone_id_path}/messages", headers: api_headers, body: permission_request_body(recipient, body_text),
-                                         **GRAPH_REQUEST_OPTIONS
+      "#{calls_phone_id_path}/messages", headers: api_headers, body: permission_request_body(recipient, body_text)
     )
 
     unless response.success?
@@ -38,27 +37,9 @@ module Enterprise::Whatsapp::Providers::WhatsappCloudService
 
   def initiate_call(recipient, sdp_offer)
     response = HTTParty.post(
-      "#{calls_phone_id_path}/calls", headers: api_headers, body: initiate_call_body(recipient, sdp_offer),
-                                      **GRAPH_REQUEST_OPTIONS
+      "#{calls_phone_id_path}/calls", headers: api_headers, body: initiate_call_body(recipient, sdp_offer)
     )
     process_initiate_call_response(response)
-  end
-
-  # Sets WABA calling status ('ENABLED'/'DISABLED'). Returns true, or raises with
-  # Meta's user-facing message on failure so the caller can surface it.
-  def update_calling_status(status)
-    response = HTTParty.post(
-      "#{calls_phone_id_path}/settings",
-      headers: api_headers,
-      body: { calling: { status: status } }.to_json,
-      **GRAPH_REQUEST_OPTIONS
-    )
-    return true if response.success?
-
-    parsed = response.parsed_response.is_a?(Hash) ? response.parsed_response : {}
-    error = parsed['error'].is_a?(Hash) ? parsed['error'] : {}
-    Rails.logger.error "[WHATSAPP CALL] update_calling_status failed: status=#{response.code} body=#{response.body}"
-    raise meta_error_message(error, 'Failed to update calling status')
   end
 
   private
@@ -78,7 +59,7 @@ module Enterprise::Whatsapp::Providers::WhatsappCloudService
   def call_api(action_name, body)
     url = "#{calls_phone_id_path}/calls"
     Rails.logger.info "[WHATSAPP CALL] #{action_name} POST #{url} body=#{body.except(:session).to_json}"
-    response = HTTParty.post(url, headers: api_headers, body: body.to_json, **GRAPH_REQUEST_OPTIONS)
+    response = HTTParty.post(url, headers: api_headers, body: body.to_json)
     Rails.logger.error "[WHATSAPP CALL] #{action_name} failed: status=#{response.code} body=#{response.body}" unless response.success?
     response.success?
   end

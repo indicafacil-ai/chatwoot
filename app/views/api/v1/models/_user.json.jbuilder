@@ -42,11 +42,14 @@ json.accounts do
     json.active_at account_user.active_at
     json.role account_user.role
     json.permissions account_user.permissions
+    json.feature_access FeatureAccess.new(account).granted(account_user)
     # the actual availability user has configured
     json.availability account_user.availability
     # availability derived from presence
     json.availability_status account_user.availability_status
     json.auto_offline account_user.auto_offline
+    json.accepts_conversations account_user.accepts_conversations
+    json.accepts_calls account_user.accepts_calls
     json.api_and_webhooks account_user.account.feature_enabled?('api_and_webhooks')
     json.partial! 'api/v1/models/account_user', account_user: account_user if ChatwootApp.enterprise?
   end

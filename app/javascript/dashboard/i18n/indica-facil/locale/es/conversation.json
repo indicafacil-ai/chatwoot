@@ -23,7 +23,11 @@
       "TITLE": "La conversación ya está asignada",
       "DESCRIPTION": "{agentName} ya está atendiendo esta conversación. Pídale que la libere o pida a un administrador que la reasigne.",
       "DESCRIPTION_UNKNOWN_AGENT": "Otro agente ya está atendiendo esta conversación. Pídale que la libere o pida a un administrador que la reasigne.",
-      "CONFIRM": "Entendido"
+      "CONFIRM": "Entendido",
+      "OUTSIDE_WORKING_HOURS": {
+        "TITLE": "Bandeja fuera del horario de atención",
+        "DESCRIPTION": "Las conversaciones de esta bandeja solo se pueden asignar dentro de su horario de atención. Inténtelo de nuevo cuando abra, o pida a un administrador."
+      }
     },
     "CHANGE_TEAM_FAILED": "No se pudo cambiar el equipo",
     "MESSAGE_DELETED_BY_CONTACT": "Eliminado por el contacto",
@@ -107,10 +111,32 @@
         }
       }
     },
-    "HEADER": {
-      "WHATSAPP_CALL_GROUP_UNSUPPORTED": "No se puede llamar a un grupo por WhatsApp"
+    "WHATSAPP_NUMBER_MISSING_BANNER": "Este número no tenía WhatsApp cuando se verificó el {date}. Los mensajes enviados a él no se entregan.",
+    "HISTORY_MEDIA": {
+      "PENDING": "Este archivo del historial importado todavía no se descargó.",
+      "DOWNLOAD": "Descargar archivo",
+      "REQUESTED": "Descarga solicitada. El archivo aparecerá aquí cuando llegue.",
+      "ERROR": "No se pudo solicitar la descarga. Inténtalo de nuevo.",
+      "UNAVAILABLE": "Este archivo ya no está disponible en WhatsApp.",
+      "DOWNLOAD_ALL": "Descargar archivos del historial",
+      "DOWNLOAD_ALL_REQUESTED": "Descargando los archivos del historial de esta conversación. Aparecerán a medida que lleguen.",
+      "DOWNLOAD_ALL_ERROR": "No se pudieron solicitar los archivos del historial. Inténtalo de nuevo."
     },
-    "WHATSAPP_NUMBER_MISSING_BANNER": "Este número no tenía WhatsApp cuando se verificó el {date}. Los mensajes enviados a él no se entregan."
+    "CATALOG": {
+      "PRODUCT_LABEL": "Producto del catálogo",
+      "PRODUCT_UNREADABLE": "Mensaje con un producto del catálogo. Míralo en WhatsApp.",
+      "VIEW": "Ver",
+      "ORDER_LABEL": "Pedido",
+      "ITEM_COUNT": "{count} artículo | {count} artículos",
+      "ESTIMATED_TOTAL": "{total} (total estimado)",
+      "VIEW_ORDER": "Ver pedido",
+      "HIDE_ORDER": "Ocultar artículos",
+      "QUANTITY": "Cantidad: {quantity}",
+      "QUANTITY_PRICE": "Cantidad: {quantity} · {price}"
+    },
+    "RICH": {
+      "VIEW_OPTIONS": "Ver opciones"
+    }
   },
   "CONVERSATION_SIDEBAR": {
     "ACCORDION": {

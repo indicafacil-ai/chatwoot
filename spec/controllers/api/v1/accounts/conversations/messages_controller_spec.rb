@@ -281,6 +281,22 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(conversation.messages.count).to eq(1)
         expect(conversation.messages.first.content_type).to eq(params[:content_type])
       end
+
+      it 'answers an activity message with no sender and leaves the contact last activity alone' do
+        create(:agent_bot_inbox, inbox: inbox, agent_bot: agent_bot)
+        conversation.contact.update!(last_activity_at: 3.days.ago)
+
+        expect do
+          post api_v1_account_conversation_messages_url(account_id: account.id, conversation_id: conversation.display_id),
+               params: { content: 'Order shipped', message_type: 'activity' },
+               headers: { api_access_token: agent_bot.access_token.token },
+               as: :json
+        end.not_to(change { conversation.contact.reload.last_activity_at })
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['message_type']).to eq(2)
+        expect(response.parsed_body).not_to have_key('sender')
+      end
     end
   end
 
@@ -923,6 +939,102 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(message.reload.content).to eq('orçamento em 24h')
         expect(message.reload.is_edited).to be(true)
       end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/conversations/:conversation_id/messages/:id/fetch_media' do
+    let(:channel) { create(:channel_whatsapp, account: account, provider: 'native', validate_provider_config: false, sync_templates: false) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+    let(:admin) { create(:user, account: account, role: :administrator) }
+    let(:pending_media) { Whatsapp::Session::Model::Content::Media.new(kind: 'image', mime: 'image/jpeg').to_h }
+    let(:message) do
+      create(:message, conversation: conversation, inbox: channel.inbox, account: account, source_id: 'HIST1',
+                       content_attributes: { 'is_unsupported' => true, 'history_media' => true, 'pending_media' => pending_media })
+    end
+    let(:url) { "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}/fetch_media" }
+
+    it 'queues the download of a history file that is still missing' do
+      expect do
+        post url, headers: admin.create_new_auth_token, as: :json
+      end.to have_enqueued_job(Whatsapp::Session::MediaFetchJob).with(message, pending_media, anything)
+
+      expect(response).to have_http_status(:accepted)
+    end
+
+    it 'refuses a message that is not a missing history file' do
+      message.update!(content_attributes: {})
+
+      expect do
+        post url, headers: admin.create_new_auth_token, as: :json
+      end.not_to have_enqueued_job(Whatsapp::Session::MediaFetchJob)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'refuses a history file that has already arrived' do
+      message.attachments.create!(account: account, file_type: :fallback, fallback_title: 'foto')
+
+      expect do
+        post url, headers: admin.create_new_auth_token, as: :json
+      end.not_to have_enqueued_job(Whatsapp::Session::MediaFetchJob)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'refuses an agent who cannot see the inbox' do
+      agent = create(:user, account: account, role: :agent)
+
+      expect do
+        post url, headers: agent.create_new_auth_token, as: :json
+      end.not_to have_enqueued_job(Whatsapp::Session::MediaFetchJob)
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    # The messages API stores whatever content_attributes a client sends, so the marks of a
+    # history file are not proof that one is waiting: a descriptor an agent wrote would have
+    # the provider download any URL with the connector's token.
+    # An activity written through the API has no sender, like a message sent from the phone,
+    # which is why the author alone is not enough either.
+    %w[outgoing activity].each do |message_type|
+      it "refuses #{message_type} message an agent wrote with the marks of a history file" do
+        forged = { 'is_unsupported' => true, 'history_media' => true, 'imported' => true,
+                   'pending_media' => pending_media.merge('ref' => { 'kind' => 'url', 'url' => 'http://169.254.169.254/latest' }) }
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+             params: { content: 'x', message_type: message_type, content_attributes: forged }, headers: admin.create_new_auth_token, as: :json
+        written = conversation.messages.find(response.parsed_body['id'])
+        # Set afterwards, as if a client could still get them in: provenance has to hold alone.
+        expect(written.content_attributes).not_to include('history_media', 'pending_media')
+        written.update!(content_attributes: written.content_attributes.merge(forged), source_id: 'FAKE1')
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{written.id}/fetch_media",
+               headers: admin.create_new_auth_token, as: :json
+        end.not_to have_enqueued_job(Whatsapp::Session::MediaFetchJob)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
+    # An author deleted later leaves the message with no sender, which is what a message sent
+    # from the phone looks like: the marks must never get in from a client to begin with.
+    it 'drops the history marks a client sends with a new message' do
+      sent = { 'history_media' => true, 'imported' => true, 'pending_media' => pending_media, 'in_reply_to' => message.id }
+      post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+           params: { content: 'x', source_id: 'FAKE2', content_attributes: sent }, headers: admin.create_new_auth_token, as: :json
+
+      written = conversation.messages.find(response.parsed_body['id'])
+      expect(written.content_attributes).not_to include('history_media', 'imported', 'pending_media')
+      expect(written.content_attributes['in_reply_to']).to eq(message.id)
+    end
+
+    it 'answers not found for a message of another conversation' do
+      other = create(:message, account: account)
+
+      post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{other.id}/fetch_media",
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:not_found)
     end
   end
 end

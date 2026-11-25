@@ -78,6 +78,7 @@ import { createTypingIndicator } from '@chatwoot/utils';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { uploadFile } from 'dashboard/helper/uploadHelper';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
+import { findSignatureSeparator } from 'dashboard/constants/signatureSeparators';
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -460,13 +461,13 @@ const signaturePosition = computed(() => {
   );
 });
 
-const signatureSeparator = computed(() => {
-  return (
-    props.signatureSeparatorOverride ||
-    currentUser.value?.ui_settings?.signature_separator ||
-    'blank'
-  );
-});
+const signatureEditorLine = computed(
+  () =>
+    findSignatureSeparator(
+      props.signatureSeparatorOverride ||
+        currentUser.value?.ui_settings?.signature_separator
+    ).editorLine
+);
 
 const shouldShowSignaturePreview = computed(() => {
   return sendWithSignature.value && props.signature;
@@ -1093,8 +1094,8 @@ defineExpose({ focusEditorInputField, insertMentionTrigger });
         {{ t('CONVERSATION.FOOTER.SIGNATURE_LABEL_TOP') }}
       </div>
       <div v-dompurify-html="formattedSignature" class="signature-content" />
-      <div v-if="signatureSeparator === '--'" class="signature-separator">
-        {{ signatureSeparator }}
+      <div v-if="signatureEditorLine" class="signature-separator">
+        {{ signatureEditorLine }}
       </div>
     </div>
     <div ref="editor" class="editor-mount" />
@@ -1107,8 +1108,8 @@ defineExpose({ focusEditorInputField, insertMentionTrigger });
       <div class="signature-label">
         {{ t('CONVERSATION.FOOTER.SIGNATURE_LABEL_BOTTOM') }}
       </div>
-      <div v-if="signatureSeparator === '--'" class="signature-separator">
-        {{ signatureSeparator }}
+      <div v-if="signatureEditorLine" class="signature-separator">
+        {{ signatureEditorLine }}
       </div>
       <div v-dompurify-html="formattedSignature" class="signature-content" />
     </div>
@@ -1196,6 +1197,14 @@ defineExpose({ focusEditorInputField, insertMentionTrigger });
   .ProseMirror-menubar {
     min-height: 1.25rem !important;
     @apply items-center gap-4 flex pb-0 bg-transparent text-n-slate-11 relative ltr:-left-[3px] rtl:-right-[3px];
+
+    // prosemirror-menu pins the menubar with an inline position: fixed while
+    // the editor scrolls under it; without a background the text shows through.
+    // components-next/Editor keeps its menubar in place (.editor-wrapper sets
+    // position: relative !important), so it stays as it is.
+    &[style*='position: fixed']:not(:where(.editor-wrapper *)) {
+      @apply bg-n-background py-1 z-10 shadow-sm;
+    }
 
     .ProseMirror-menu-active {
       @apply bg-n-slate-5 dark:bg-n-solid-3 !important;
