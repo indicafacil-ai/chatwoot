@@ -10,11 +10,15 @@ defineProps({
 const MAX_ATTEMPTS = 6;
 const RETRY_DELAY_MS = 1000;
 
-// O Chrome do celular, ao terminar um audio, pode voltar ao primeiro da conversa e tocar todos em
-// sequencia sem ninguem tocar na tela. Aqui um audio so toca com o gesto da pessoa NESTE player, e
-// quando um comeca os outros param.
+// O play e sempre o normal do navegador. O unico play barrado e o que o Chrome do celular dispara
+// sozinho ao terminar um audio (volta ao primeiro da conversa e toca todos em sequencia): um audio que
+// comeca logo depois de outro terminar, sem toque da pessoa neste player. O toque nem sempre chega ao
+// elemento no celular (os controles nativos ficam na shadow DOM), por isso ele nao e exigido para tocar.
+// Quando um comeca, os outros param.
 const GESTURE_WINDOW_MS = 2000;
+const CHAIN_WINDOW_MS = 1500;
 const PLAY_EVENT = 'widget:audio-bubble-play';
+const ENDED_KEY = 'widgetAudioEndedAt';
 
 const audio = ref(null);
 let attempts = 0;
@@ -33,11 +37,18 @@ const markGesture = () => {
 };
 
 const onPlay = () => {
-  if (Date.now() - lastGestureAt > GESTURE_WINDOW_MS) {
+  const now = Date.now();
+  const semToque = now - lastGestureAt > GESTURE_WINDOW_MS;
+  const emCadeia = now - (window[ENDED_KEY] || 0) < CHAIN_WINDOW_MS;
+  if (semToque && emCadeia) {
     audio.value?.pause();
     return;
   }
   window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: audio.value }));
+};
+
+const onEnded = () => {
+  window[ENDED_KEY] = Date.now();
 };
 
 const onOtherPlay = event => {
@@ -61,6 +72,7 @@ onBeforeUnmount(() => {
     @touchstart.passive="markGesture"
     @keydown="markGesture"
     @play="onPlay"
+    @ended="onEnded"
   >
     <source :src="url" @error="onSourceError" />
   </audio>

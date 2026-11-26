@@ -54,11 +54,38 @@ describe('AudioBubble', () => {
       return pause;
     };
 
-    it('para um audio que comeca sem o toque da pessoa', async () => {
+    afterEach(() => {
+      delete window.widgetAudioEndedAt;
+    });
+
+    it('toca normalmente com o play, mesmo sem o toque chegar ao elemento', async () => {
       const { wrapper } = montar();
       const pause = comPause(wrapper);
       await wrapper.find('audio').trigger('play');
-      expect(pause).toHaveBeenCalledTimes(1);
+      expect(pause).not.toHaveBeenCalled();
+    });
+
+    it('para o audio que comeca sozinho logo depois de outro terminar', async () => {
+      const primeiro = montar().wrapper;
+      const segundo = montar().wrapper;
+      const pauseSegundo = comPause(segundo);
+      await primeiro.find('audio').trigger('ended');
+      await segundo.find('audio').trigger('play');
+      expect(pauseSegundo).toHaveBeenCalledTimes(1);
+      primeiro.unmount();
+      segundo.unmount();
+    });
+
+    it('deixa tocar o proximo quando a pessoa toca nele depois de outro terminar', async () => {
+      const primeiro = montar().wrapper;
+      const segundo = montar().wrapper;
+      const pauseSegundo = comPause(segundo);
+      await primeiro.find('audio').trigger('ended');
+      await segundo.find('audio').trigger('pointerdown');
+      await segundo.find('audio').trigger('play');
+      expect(pauseSegundo).not.toHaveBeenCalled();
+      primeiro.unmount();
+      segundo.unmount();
     });
 
     it('deixa tocar depois do toque da pessoa no player', async () => {
