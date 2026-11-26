@@ -293,11 +293,12 @@ const showTab = name => {
 };
 
 const initializeTabs = () => {
-  document
-    .querySelectorAll('[data-tab]')
-    .forEach(tab =>
-      tab.addEventListener('click', () => showTab(tab.dataset.tab))
-    );
+  // One listener on the document, not one per tab: it also answers tabs rendered after this script ran,
+  // which listeners bound to each tab at load time never saw.
+  document.addEventListener('click', event => {
+    const tab = event.target.closest('[data-tab]');
+    if (tab) showTab(tab.dataset.tab);
+  });
 
   // The browser cannot focus an invalid control on a hidden tab, so it would drop
   // the submit without a word. Bring that tab forward before it tries.

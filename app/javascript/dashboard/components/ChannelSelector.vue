@@ -69,8 +69,9 @@ const { t } = useI18n();
       </div>
     </div>
 
-    <div class="flex flex-col items-start gap-1.5">
-      <div class="flex items-center gap-2">
+    <div class="flex flex-col items-start gap-1.5 min-w-0 w-full">
+      <!-- flex-wrap: a long badge ("Recomendado para produção") moves under the title instead of overflowing the card -->
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
         <h3 class="text-n-slate-12 text-sm text-start font-medium capitalize">
           {{ title }}
         </h3>

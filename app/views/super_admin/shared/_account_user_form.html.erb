@@ -12,8 +12,8 @@ Used by both account and user show pages.
     <h2 class="text-xs font-medium uppercase tracking-wider text-n-slate-10"><%= resource_type == 'account' ? t('super_admin.accounts.add_user') : t('super_admin.users.add_account') %></h2>
   </div>
 
-  <%# The field rows stack their label over the control here so the form fits one line. %>
-  <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end [&_[data-field]]:block [&_[data-field]]:space-y-1.5 [&_[data-field]]:p-0">
+  <%# The field rows stack their label over the control here so the form fits one line; each select fills its cell. %>
+  <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end [&_[data-field]]:block [&_[data-field]]:min-w-0 [&_[data-field]]:space-y-1.5 [&_[data-field]]:p-0 [&_select]:w-full [&_select]:min-w-0">
     <% account_user_page.attributes.each_value do |attributes| %>
       <% attributes.each do |attribute| %>
         <% if attribute.name == resource_type %>
