@@ -262,10 +262,13 @@ export default {
     }"
     @submit="onSubmit"
   >
+    <!-- A link anywhere in the message (the formatter does not always wrap it in a <p>) reads as a link:
+         the inbox color, underlined, its <strong> not the only cue. -->
     <div
       v-if="shouldShowHeaderMessage"
       v-dompurify-html="formatMessage(headerMessage, false)"
-      class="mb-4 text-base leading-5 text-n-slate-12 [&>p>.link]:text-n-blue-11 [&>p>.link]:hover:underline"
+      class="mb-4 text-base leading-5 text-n-slate-12 [&_.link]:font-medium [&_.link]:underline [&_.link]:underline-offset-2 [&_.link]:[color:var(--prechat-link)] [&_.link:hover]:opacity-80"
+      :style="{ '--prechat-link': widgetColor }"
     />
     <!-- Why do the v-bind shenanigan? Because Formkit API is really bad.
     If we just pass the options as is even with null or undefined or false,
